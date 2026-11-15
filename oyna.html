@@ -22,7 +22,7 @@
   <main class="play-area"><div class="play-head"><div><div class="text-uppercase small fw-bold" style="color:var(--lime);letter-spacing:.12em">Şimdi oynuyorsun</div><h1 id="gameTitle">Oyun</h1></div><a class="back-link" href="index.html#oyunlar">← Oyun listesine dön</a></div><iframe id="gameFrame" class="game-frame" title="Oyun alanı" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe><p class="hint">Oyun yüklenirken kısa bir süre bekleyebilirsin. Tam ekran düğmesini oyunun içinden kullanabilirsin.</p></main>
   <footer class="footer"><div class="container d-flex justify-content-between flex-wrap gap-2"><span>© 2026 <strong>Oyun Köşem</strong></span><span>Merakla yapıldı 💚</span></div></footer>
   <script>
-    const games={nitro:{title:"Nitro Tünel",src:"games/nitro-tunnel/index.html"},"cyber-flappy":{title:"Cyber Flappy Ultimate",src:"games/cyber-flappy-ultimate/index.html"}};
+    const games={nitro:{title:"Nitro Tünel",src:"games/nitro-tunnel/index.html"},"cyber-flappy":{title:"Cyber Flappy Ultimate",src:"games/cyber-flappy-ultimate/index.html"},"astro-strike":{title:"Astro Strike 3D",src:"games/astro-strike-3d/index.html"}};
     const game=games[new URLSearchParams(location.search).get("game")]||games.nitro;
     document.title=game.title+" — Oyun Köşem";
     document.querySelector("#gameTitle").textContent=game.title;
@@ -30,4 +30,5 @@
   </script>
 </body>
 </html>
+
 
