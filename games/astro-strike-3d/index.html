@@ -1,0 +1,2259 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Astro Strike 3D: Güneş Sistemi Keşfi</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js (3D Grafik Motoru) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Tone.js (Ses Sentezleyici) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Font Awesome (İkonlar) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@400;500;600&display=swap');
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #030308;
+            font-family: 'Orbitron', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none;
+        }
+
+        .font-sans-ui {
+            font-family: 'Inter', sans-serif;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .neon-text {
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.8), 0 0 20px rgba(0, 243, 255, 0.5);
+        }
+        
+        .neon-text-danger {
+            text-shadow: 0 0 10px rgba(255, 42, 85, 0.8), 0 0 20px rgba(255, 42, 85, 0.5);
+        }
+
+        .neon-text-gold {
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.8), 0 0 20px rgba(251, 191, 36, 0.5);
+        }
+
+        .glass-panel {
+            background: rgba(10, 15, 30, 0.72);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.7);
+        }
+
+        .btn-cyber {
+            background: linear-gradient(135deg, #0284c7 0%, #3b82f6 100%);
+            border: 1px solid #7dd3fc;
+            box-shadow: 0 0 15px rgba(2, 132, 199, 0.6);
+            transition: all 0.2s ease;
+        }
+
+        .btn-cyber:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(56, 189, 248, 0.9);
+            background: linear-gradient(135deg, #0369a1 0%, #2563eb 100%);
+        }
+
+        .btn-cyber:active {
+            transform: translateY(1px);
+        }
+
+        .btn-emerald {
+            background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+            border: 1px solid #6ee7b7;
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+            transition: all 0.2s ease;
+        }
+
+        .btn-emerald:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.85);
+        }
+
+        #damage-flash, #powerup-flash {
+            pointer-events: none;
+            transition: opacity 0.3s ease-out;
+        }
+
+        /* 3D Dünya Üzerindeki Gezegen Etiketleri */
+        .planet-label {
+            position: absolute;
+            transform: translate(-50%, -100%);
+            pointer-events: auto;
+            cursor: pointer;
+            transition: transform 0.15s ease;
+        }
+        .planet-label:hover {
+            transform: translate(-50%, -105%) scale(1.08);
+        }
+
+        #joystick-zone {
+            touch-action: none;
+        }
+        #joystick-knob {
+            transition: transform 0.05s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <!-- 3D Sahne -->
+    <div id="canvas-wrapper" class="w-full h-full"></div>
+
+    <!-- 3D Gezegen İsim Etiketleri Katmanı -->
+    <div id="planet-labels-container" class="fixed inset-0 pointer-events-none z-10 overflow-hidden"></div>
+
+    <!-- Ekran Parlama Efektleri -->
+    <div id="damage-flash" class="fixed inset-0 bg-red-600 opacity-0 z-10"></div>
+    <div id="powerup-flash" class="fixed inset-0 bg-cyan-400 opacity-0 z-10"></div>
+
+    <!-- Üst Bilgi Paneli (HUD) -->
+    <div id="hud" class="hidden fixed top-0 left-0 w-full p-3 md:p-5 flex justify-between items-start z-20 pointer-events-none">
+        <!-- Sol Üst: Skor, Mod ve Görev Durumu -->
+        <div class="flex flex-col gap-2 max-w-xs md:max-w-sm">
+            <div class="glass-panel rounded-2xl px-4 py-3 text-cyan-400">
+                <div class="flex items-center justify-between gap-4">
+                    <div>
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider">KREDİ / SKOR</div>
+                        <div id="score-display" class="text-xl md:text-2xl font-black neon-text">0</div>
+                    </div>
+                    <div id="mode-badge" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-400 text-cyan-300 font-bold text-xs">
+                        <i class="fas fa-compass mr-1"></i> KEŞİF MODU
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 text-xs text-slate-300 mt-1.5">
+                    <span>TAMAMLANAN GÖREV: <strong id="completed-missions-display" class="text-emerald-400">0/6</strong></span>
+                </div>
+            </div>
+
+            <!-- Aktif Görev İlerleme Kutusu (Sadece Görev Sırasında Görünür) -->
+            <div id="mission-tracker-ui" class="hidden glass-panel rounded-2xl p-3.5 border-amber-400/70 bg-amber-950/40 pointer-events-auto">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">
+                        <i class="fas fa-crosshairs mr-1 animate-spin"></i> <span id="active-mission-planet">MARS</span> GÖREVİ
+                    </span>
+                    <button id="abort-mission-btn" class="text-[10px] bg-rose-500/30 hover:bg-rose-500/60 text-rose-200 px-2 py-0.5 rounded border border-rose-400/50 transition">
+                        Görevi Bırak
+                    </button>
+                </div>
+                <div id="active-mission-desc" class="text-xs font-sans-ui text-slate-200 mb-2">Düşman avcılarını temizle</div>
+                <div class="w-full h-2.5 bg-slate-900 rounded-full overflow-hidden border border-amber-500/40">
+                    <div id="mission-progress-bar" class="h-full bg-gradient-to-r from-amber-500 to-yellow-300 transition-all duration-300" style="width: 0%;"></div>
+                </div>
+                <div class="text-right text-[11px] text-amber-300 mt-1 font-bold" id="mission-progress-text">0 / 5</div>
+            </div>
+
+            <!-- Aktif Silah Güçlendirmesi -->
+            <div id="weapon-buff-ui" class="hidden glass-panel rounded-xl px-3 py-1.5 border-cyan-400/60 flex items-center gap-2 text-xs text-cyan-300">
+                <i class="fas fa-bolt text-amber-400 animate-pulse"></i>
+                <span>ÜÇLÜ LAZER: <strong id="buff-timer">10s</strong></span>
+            </div>
+        </div>
+
+        <!-- Sağ Üst: Kalkan, Turbo, Mini Radar ve Ses -->
+        <div class="flex flex-col items-end gap-2">
+            <div class="flex items-start gap-2">
+                <!-- Mini Radar (Güneş Sistemi Modunda Görünür) -->
+                <div id="radar-container" class="glass-panel rounded-full p-1 border-cyan-500/40 shadow-[0_0_15px_rgba(6,182,212,0.3)] hidden sm:block">
+                    <canvas id="radar-canvas" width="96" height="96" class="rounded-full"></canvas>
+                </div>
+
+                <!-- Kalkan ve Turbo Barları -->
+                <div class="glass-panel rounded-2xl px-3.5 py-2.5 text-right">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">KALKAN GÜCÜ</div>
+                    <div class="w-28 md:w-40 h-2.5 bg-slate-800 rounded-full overflow-hidden border border-slate-600 mb-2">
+                        <div id="health-bar" class="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300" style="width: 100%;"></div>
+                    </div>
+                    
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">TURBO (SHIFT)</div>
+                    <div class="w-28 md:w-40 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700">
+                        <div id="boost-bar" class="h-full bg-gradient-to-r from-purple-500 to-indigo-400 transition-all duration-100" style="width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-2 pointer-events-auto">
+                <button id="hangar-toggle" title="Uzay Hangarı & Mağaza" class="glass-panel px-3 h-9 rounded-full flex items-center gap-1.5 text-amber-400 hover:text-white transition text-xs font-bold border-amber-400/50">
+                    <i class="fas fa-tools"></i> <span class="hidden md:inline">HANGAR</span>
+                </button>
+                <button id="help-toggle" title="Kontroller" class="glass-panel w-9 h-9 rounded-full flex items-center justify-center text-cyan-400 hover:text-white transition text-sm">
+                    <i class="fas fa-question"></i>
+                </button>
+                <button id="sound-toggle" title="Sesi Aç/Kapat" class="glass-panel w-9 h-9 rounded-full flex items-center justify-center text-cyan-400 hover:text-white transition text-sm">
+                    <i id="sound-icon" class="fas fa-volume-up"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UZAY HANGARI & MAĞAZA MODALI -->
+    <div id="hangar-modal" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/80 backdrop-blur-md">
+        <div class="glass-panel rounded-3xl p-6 md:p-8 max-w-2xl w-full border-amber-400/60 relative max-h-[90vh] overflow-y-auto">
+            <button id="close-hangar-modal" class="absolute top-5 right-5 w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition cursor-pointer">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-6">
+                <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-400 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.4)]">
+                    <i class="fas fa-tools text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-black text-white neon-text-gold">UZAY HANGARI & MAĞAZA</h2>
+                    <p class="text-xs text-slate-300 font-sans-ui">Mevcut Kredi: <strong id="hangar-credits-display" class="text-amber-400 font-bold">0</strong> Kredi</p>
+                </div>
+            </div>
+
+            <!-- Sekmeler -->
+            <div class="flex gap-2 mb-6 border-b border-slate-700 pb-3 font-sans-ui">
+                <button id="tab-ships-btn" class="px-4 py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/50 font-bold text-xs transition cursor-pointer">
+                    <i class="fas fa-rocket mr-1"></i> Gemi Modelleri
+                </button>
+                <button id="tab-upgrades-btn" class="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 font-bold text-xs transition cursor-pointer">
+                    <i class="fas fa-shield-alt mr-1"></i> Sistem Geliştirmeleri (Max 30)
+                </button>
+            </div>
+
+            <!-- 1. Gemi Modelleri Sekmesi -->
+            <div id="tab-ships-content" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Gemi 1: Standart Savaşçı -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-cyan-400/50 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-cyan-950 to-slate-900 mb-3 flex items-center justify-center border border-cyan-500/30">
+                            <i class="fas fa-fighter-jet text-3xl text-cyan-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Astro-I Savaşçı</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">Dengeli manevra ve standart lazer sistemine sahip keşif gemisi.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-emerald-400 font-bold mb-2">SEÇİLDİ</div>
+                        <button disabled class="w-full py-2.5 rounded-xl bg-slate-800 text-slate-400 font-bold text-xs uppercase cursor-not-allowed">Kullanımda</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 2: Titan Ağır Zırh -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-purple-950 to-slate-900 mb-3 flex items-center justify-center border border-purple-500/30">
+                            <i class="fas fa-space-shuttle text-3xl text-purple-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Titan Ağır Zırh</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">+50% Maksimum Kalkan kapasitesi ve dayanıklı gövde.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 2500 KREDİ</div>
+                        <button onclick="buyShip('titan', 2500)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 3: Sinyal Avcısı -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-emerald-950 to-slate-900 mb-3 flex items-center justify-center border border-emerald-500/30">
+                            <i class="fas fa-jet-fighter text-3xl text-emerald-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Sinyal Avcısı</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">Ultra yüksek hız, seri lazer atış frekansı ve kıvrak manevra.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 5000 KREDİ</div>
+                        <button onclick="buyShip('hunter', 5000)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 4: Foton Kılıcı -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-red-950 to-slate-900 mb-3 flex items-center justify-center border border-red-500/30">
+                            <i class="fas fa-rocket text-3xl text-red-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Foton Kılıcı</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">Yüksek ısı çıkışlı çift fıçı lazer sistemi.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 7500 KREDİ</div>
+                        <button onclick="buyShip('photon', 7500)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 5: Nebula Gezgini -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-blue-950 to-slate-900 mb-3 flex items-center justify-center border border-blue-500/30">
+                            <i class="fas fa-meteor text-3xl text-blue-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Nebula Gezgini</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">Derin uzay keşifleri için optimize edilmiş aerodinamik gövde.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 10000 KREDİ</div>
+                        <button onclick="buyShip('nebula', 10000)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 6: Quantum Kesici -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-amber-950 to-slate-900 mb-3 flex items-center justify-center border border-amber-500/30">
+                            <i class="fas fa-satellite text-3xl text-amber-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Quantum Kesici</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">Parçacık hızlandırıcı destekli taarruz gemisi.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 15000 KREDİ</div>
+                        <button onclick="buyShip('quantum', 15000)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 7: Pulsar Fırtınası -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-indigo-950 to-slate-900 mb-3 flex items-center justify-center border border-indigo-500/30">
+                            <i class="fas fa-shuttle-space text-3xl text-indigo-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Pulsar Fırtınası</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">Manyetik alan bükücü zırh teknolojisi.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 20000 KREDİ</div>
+                        <button onclick="buyShip('pulsar', 20000)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 8: Süpernova Muhafızı -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-teal-950 to-slate-900 mb-3 flex items-center justify-center border border-teal-500/30">
+                            <i class="fas fa-shield-alt text-3xl text-teal-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Süpernova Muhafızı</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">Gezegen savunma filoları için tasarlanmış ağır kruvazör.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 25000 KREDİ</div>
+                        <button onclick="buyShip('supernova', 25000)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 9: Orion Phantom -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-rose-950 to-slate-900 mb-3 flex items-center justify-center border border-rose-500/30">
+                            <i class="fas fa-ghost text-3xl text-rose-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Orion Phantom</h3>
+                        <p class="text-[11px] text-slate-400 font-sans-ui mb-3">Radar izi bırakmayan hayalet gövde mimarisi.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 35000 KREDİ</div>
+                        <button onclick="buyShip('phantom', 35000)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+
+                <!-- Gemi 10: Galaktik İmparator -->
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-amber-400/50 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-24 rounded-xl bg-gradient-to-br from-amber-950 to-yellow-950 mb-3 flex items-center justify-center border border-amber-500/50">
+                            <i class="fas fa-crown text-3xl text-amber-400"></i>
+                        </div>
+                        <h3 class="text-sm font-bold text-white mb-1">Galaktik İmparator</h3>
+                        <p class="text-[11px] text-slate-300 font-sans-ui mb-3">Güneş sisteminin en üstün teknolojisiyle donatılmış amiral gemisi.</p>
+                    </div>
+                    <div>
+                        <div class="text-[10px] text-amber-400 font-bold mb-2">FİYAT: 50000 KREDİ</div>
+                        <button onclick="buyShip('emperor', 50000)" class="btn-cyber w-full py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">Satın Al & Kuşan</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Sistem Geliştirmeleri Sekmesi (Başlangıçta gizli) -->
+            <div id="tab-upgrades-content" class="hidden space-y-3 mb-6 font-sans-ui">
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <h4 class="text-sm font-bold text-white"><i class="fas fa-bolt text-amber-400 mr-2"></i>Lazer Güçlendirici (Seviye <span id="upgrade-laser-lvl">1</span>/30)</h4>
+                        <p class="text-xs text-slate-400">Lazer mermilerinin düşmanlara verdiği hasarı artırır.</p>
+                    </div>
+                    <button onclick="upgradeStat('laser', 1000)" class="btn-emerald px-4 py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">
+                        1000 Kredi
+                    </button>
+                </div>
+
+                <div class="bg-slate-900/80 rounded-2xl p-4 border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <h4 class="text-sm font-bold text-white"><i class="fas fa-tachometer-alt text-cyan-400 mr-2"></i>Motor İticileri (Seviye <span id="upgrade-engine-lvl">1</span>/30)</h4>
+                        <p class="text-xs text-slate-400">Geminin uçuş hızını ve turbo verimliliğini artırır.</p>
+                    </div>
+                    <button onclick="upgradeStat('engine', 1200)" class="btn-emerald px-4 py-2.5 rounded-xl text-white font-bold text-xs uppercase cursor-pointer">
+                        1200 Kredi
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="document.getElementById('hangar-modal').classList.add('hidden')" class="btn-cyber w-full py-3.5 rounded-xl text-white font-bold text-sm tracking-wider uppercase cursor-pointer">
+                Hangardan Çık & Devam Et
+            </button>
+        </div>
+    </div>
+
+    <!-- Seçili Gezegen Etkileşim Kartı (Tıklanınca veya Yaklaşınca Açılır) -->
+    <div id="planet-action-card" class="hidden fixed bottom-44 md:bottom-6 left-1/2 transform -translate-x-1/2 z-30 w-[92%] max-w-md pointer-events-auto transition-all duration-300">
+        <div class="glass-panel rounded-3xl p-5 border-cyan-400/60 shadow-[0_0_30px_rgba(6,182,212,0.35)]">
+            <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-3">
+                    <div id="card-planet-dot" class="w-4 h-4 rounded-full bg-cyan-400 shadow-[0_0_10px_currentColor]"></div>
+                    <div>
+                        <h3 id="card-planet-name" class="text-xl font-black text-white tracking-wide">MARS</h3>
+                        <p id="card-planet-subtitle" class="text-xs text-cyan-300 font-sans-ui">Kızıl Gezegen • Mesafe: 450 km</p>
+                    </div>
+                </div>
+                <button id="close-planet-card" class="w-8 h-8 rounded-full bg-slate-800/80 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="bg-slate-900/70 rounded-xl p-2.5 mb-3.5 border border-slate-700/70 text-xs font-sans-ui text-slate-300 flex items-center justify-between">
+                <span><i class="fas fa-crosshairs text-amber-400 mr-1.5"></i><strong id="card-mission-title">Kızıl Koloni Savunması</strong></span>
+                <span class="text-amber-300 font-bold">+<span id="card-mission-reward">1500</span> Kredi</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+                <button id="btn-enter-planet" class="btn-emerald py-3 px-4 rounded-xl text-white font-bold text-xs md:text-sm tracking-wider uppercase flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fas fa-rocket"></i> GİR (GÖREV)
+                </button>
+                <button id="btn-planet-info" class="btn-cyber py-3 px-4 rounded-xl text-white font-bold text-xs md:text-sm tracking-wider uppercase flex items-center justify-center gap-2 cursor-pointer">
+                    <i class="fas fa-info-circle"></i> GEZEGEN BİLGİSİ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gezegen Hakkında Bilgi Penceresi (Ansiklopedi Modalı) -->
+    <div id="planet-info-modal" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/75 backdrop-blur-md">
+        <div class="glass-panel rounded-3xl p-6 md:p-8 max-w-lg w-full border-cyan-400/60 relative">
+            <button id="close-info-modal" class="absolute top-5 right-5 w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition cursor-pointer">
+                <i class="fas fa-times"></i>
+            </button>
+
+            <div class="flex items-center gap-4 mb-5">
+                <div id="modal-planet-avatar" class="w-16 h-16 rounded-full shadow-[0_0_25px_rgba(56,189,248,0.6)] border-2 border-white/30 flex-shrink-0"></div>
+                <div>
+                    <span id="modal-planet-type" class="text-[10px] uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-bold">KARASAL GEZEGEN</span>
+                    <h2 id="modal-planet-name" class="text-2xl md:text-3xl font-black text-white mt-1 neon-text">MARS</h2>
+                    <p id="modal-planet-subtitle" class="text-xs text-slate-400 font-sans-ui">Kızıl Gezegen</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2.5 mb-5 text-center font-sans-ui">
+                <div class="bg-slate-900/80 rounded-2xl p-3 border border-slate-700/70">
+                    <div class="text-[10px] text-slate-400 uppercase">Sıcaklık</div>
+                    <div id="modal-stat-temp" class="text-xs md:text-sm font-bold text-amber-400 mt-0.5">-65°C</div>
+                </div>
+                <div class="bg-slate-900/80 rounded-2xl p-3 border border-slate-700/70">
+                    <div class="text-[10px] text-slate-400 uppercase">Güneş Uzaklığı</div>
+                    <div id="modal-stat-dist" class="text-xs md:text-sm font-bold text-cyan-400 mt-0.5">228M km</div>
+                </div>
+                <div class="bg-slate-900/80 rounded-2xl p-3 border border-slate-700/70">
+                    <div class="text-[10px] text-slate-400 uppercase">Uydu Sayısı</div>
+                    <div id="modal-stat-moons" class="text-xs md:text-sm font-bold text-emerald-400 mt-0.5">2</div>
+                </div>
+            </div>
+
+            <div class="bg-slate-900/60 rounded-2xl p-4 mb-6 border border-slate-700/60">
+                <h4 class="text-xs font-bold text-cyan-300 uppercase tracking-wider mb-1.5"><i class="fas fa-book-open mr-1.5"></i>Bilimsel Özellikler</h4>
+                <p id="modal-planet-desc" class="text-xs md:text-sm text-slate-200 font-sans-ui leading-relaxed">
+                    Gezegen açıklaması burada yer alır.
+                </p>
+            </div>
+
+            <div class="flex gap-3">
+                <button id="modal-start-mission-btn" class="btn-emerald flex-1 py-3.5 rounded-xl text-white font-bold text-sm tracking-wider uppercase cursor-pointer">
+                    <i class="fas fa-rocket mr-1.5"></i> Göreve Gir
+                </button>
+                <button id="modal-close-btn" class="px-5 py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-sm uppercase transition cursor-pointer">
+                    Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Görev Tamamlandı Tebrik Penceresi -->
+    <div id="mission-complete-modal" class="hidden fixed inset-0 flex items-center justify-center z-50 p-4 bg-black/75 backdrop-blur-md">
+        <div class="glass-panel rounded-3xl p-8 max-w-md w-full text-center border-emerald-400/70 shadow-[0_0_40px_rgba(16,185,129,0.4)]">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-emerald-500/20 border-2 border-emerald-400 flex items-center justify-center shadow-[0_0_30px_rgba(16,185,129,0.6)]">
+                <i class="fas fa-trophy text-4xl text-amber-400 animate-bounce"></i>
+            </div>
+            <h2 class="text-2xl md:text-3xl font-black text-white mb-2 neon-text">GÖREV BAŞARILI!</h2>
+            <p id="complete-planet-msg" class="text-slate-300 text-sm font-sans-ui mb-5">Mars yörüngesi temizlendi!</p>
+            
+            <div class="bg-slate-900/80 rounded-2xl p-4 mb-6 border border-emerald-500/40">
+                <div class="text-xs text-slate-400 uppercase mb-1">KAZANILAN ÖDÜL</div>
+                <div id="complete-reward-text" class="text-2xl font-black text-emerald-400">+1500 KREDİ & TAM KALKAN</div>
+            </div>
+
+            <button id="return-solar-btn" class="btn-cyber w-full py-4 rounded-xl text-white font-bold text-base tracking-wider uppercase cursor-pointer">
+                <i class="fas fa-globe mr-2"></i> Güneş Sistemine Dön
+            </button>
+        </div>
+    </div>
+
+    <!-- Ekranda Sanal Joystick ve Aksiyon Kontrol Paneli -->
+    <div id="onscreen-controls" class="hidden fixed bottom-5 left-0 w-full px-5 md:px-8 z-20 flex justify-between items-end pointer-events-none">
+        <!-- Sol Alt: Sanal Analog Joystick -->
+        <div class="flex items-end gap-3 pointer-events-auto">
+            <div id="joystick-zone" class="relative w-32 h-32 md:w-36 md:h-36 rounded-full glass-panel border-2 border-cyan-400/50 flex items-center justify-center shadow-[0_0_25px_rgba(6,182,212,0.3)] cursor-grab active:cursor-grabbing">
+                <!-- Yön İkonları -->
+                <i class="fas fa-chevron-up absolute top-2 text-cyan-400/50 text-xs"></i>
+                <i class="fas fa-chevron-down absolute bottom-2 text-cyan-400/50 text-xs"></i>
+                <i class="fas fa-chevron-left absolute left-2 text-cyan-400/50 text-xs"></i>
+                <i class="fas fa-chevron-right absolute right-2 text-cyan-400/50 text-xs"></i>
+                <!-- İç Halka -->
+                <div class="w-16 h-16 rounded-full border border-cyan-400/20 pointer-events-none"></div>
+                <!-- Hareket Eden Topuz (Knob) -->
+                <div id="joystick-knob" class="absolute w-12 h-12 md:w-14 md:h-14 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 border-2 border-white shadow-[0_0_15px_rgba(56,189,248,0.9)] flex items-center justify-center pointer-events-none">
+                    <div class="w-4 h-4 rounded-full bg-white/40"></div>
+                </div>
+            </div>
+
+            <!-- Yükselme / Alçalma (3D Dikey Uçuş) Butonları -->
+            <div id="altitude-controls" class="flex flex-col gap-2">
+                <button id="btn-ascend" title="Yüksel (E)" class="w-11 h-11 rounded-2xl glass-panel border-cyan-400/50 text-cyan-300 active:bg-cyan-500/40 active:scale-95 flex items-center justify-center shadow-lg transition">
+                    <i class="fas fa-arrow-up"></i>
+                </button>
+                <button id="btn-descend" title="Alçal (Q)" class="w-11 h-11 rounded-2xl glass-panel border-cyan-400/50 text-cyan-300 active:bg-cyan-500/40 active:scale-95 flex items-center justify-center shadow-lg transition">
+                    <i class="fas fa-arrow-down"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Sağ Alt: Turbo ve Lazer Ateş Butonları -->
+        <div class="flex items-end gap-3 pointer-events-auto">
+            <button id="mobile-boost-btn" title="Turbo Hız (Shift)" class="w-14 h-14 md:w-15 md:h-15 rounded-full bg-indigo-600/85 border-2 border-indigo-400 text-white flex flex-col items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.5)] active:scale-90 transition cursor-pointer">
+                <i class="fas fa-bolt text-lg"></i>
+                <span class="text-[9px] font-bold tracking-wider">TURBO</span>
+            </button>
+            <button id="mobile-fire-btn" title="Lazer Ateşi (Boşluk)" class="w-16 h-16 md:w-20 md:h-20 rounded-full bg-rose-600/85 border-2 border-rose-400 text-white flex flex-col items-center justify-center shadow-[0_0_25px_rgba(244,63,94,0.6)] active:scale-90 transition cursor-pointer">
+                <i class="fas fa-crosshairs text-2xl md:text-3xl"></i>
+                <span class="text-[9px] font-bold tracking-wider mt-0.5">ATEŞ</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Başlangıç / Kontroller Menüsü -->
+    <div id="start-screen" class="fixed inset-0 flex items-center justify-center z-40 p-4 bg-black/70 backdrop-blur-sm">
+        <div class="glass-panel rounded-3xl p-7 md:p-9 max-w-lg w-full text-center border-cyan-500/50">
+            <div class="w-18 h-18 w-16 h-16 mx-auto mb-3 rounded-2xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center shadow-[0_0_30px_rgba(6,182,212,0.4)]">
+                <i class="fas fa-sun text-3xl text-amber-400 animate-spin" style="animation-duration: 12s;"></i>
+            </div>
+            <h1 class="text-2xl md:text-4xl font-black text-white mb-2 tracking-wide neon-text">GÜNEŞ SİSTEMİ 3D</h1>
+            <p class="text-slate-300 text-xs md:text-sm font-sans-ui mb-5 leading-relaxed">
+                Güneş sisteminde özgürce uç, gezegenlere tıklayarak haklarında bilgi edin ve yörünge görevlerine katıl!
+            </p>
+            
+            <div class="bg-slate-900/85 rounded-2xl p-4 mb-6 text-left text-xs text-slate-300 space-y-2.5 border border-slate-700/80 font-sans-ui">
+                <div class="flex items-center justify-between">
+                    <span class="px-2 py-1 bg-slate-800 rounded text-cyan-400 font-bold border border-slate-600 font-mono">W / S</span>
+                    <span>İleri Uçuş / Geri Fren</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="px-2 py-1 bg-slate-800 rounded text-cyan-400 font-bold border border-slate-600 font-mono">A / D & Q / E</span>
+                    <span>Sağa-Sola Dönüş & Yükselme/Alçalma</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="px-2 py-1 bg-slate-800 rounded text-amber-400 font-bold border border-slate-600 font-mono">Fare Sürükle / Tıkla</span>
+                    <span>Etrafa Bak & Gezegen Seç</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="px-2 py-1 bg-slate-800 rounded text-rose-400 font-bold border border-slate-600 font-mono">BOŞLUK & SHIFT</span>
+                    <span>Lazer Ateşi & Turbo Hız</span>
+                </div>
+            </div>
+
+            <button id="start-btn" class="btn-cyber w-full py-4 rounded-xl text-white font-bold text-base md:text-lg tracking-wider uppercase cursor-pointer">
+                <i class="fas fa-rocket mr-2"></i> Uzaya Açıl
+            </button>
+        </div>
+    </div>
+
+    <!-- Oyun Bitti (Game Over) Ekranı -->
+    <div id="game-over-screen" class="hidden fixed inset-0 flex items-center justify-center z-40 p-4 bg-black/80 backdrop-blur-md">
+        <div class="glass-panel rounded-3xl p-8 max-w-md w-full text-center border-rose-500/50">
+            <div class="w-20 h-20 mx-auto mb-4 rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center shadow-[0_0_30px_rgba(244,63,94,0.5)]">
+                <i class="fas fa-skull-crossbones text-4xl text-rose-500"></i>
+            </div>
+            <h2 class="text-3xl font-black text-white mb-2 neon-text-danger">GEMİ HASAR ALDI</h2>
+            <p class="text-slate-400 text-sm font-sans-ui mb-6">Acil durum kapsülü seni Güneş Sistemi merkezine geri getirdi.</p>
+            
+            <button id="restart-btn" class="btn-cyber w-full py-4 rounded-xl text-white font-bold text-base tracking-wider uppercase cursor-pointer">
+                <i class="fas fa-redo mr-2"></i> Gemiyi Onar ve Devam Et
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==========================================
+    // 1. GEZEGEN VERİTABANI VE FARKLI GÖREVLER
+    // ==========================================
+    const PLANETS_DATA = [
+        {
+            id: 'mercury',
+            name: 'MERKÜR',
+            subtitle: 'Güneşe En Yakın Gezegen',
+            type: 'Karasal Gezegen',
+            radius: 2.2,
+            distance: 45,
+            orbitSpeed: 0.18,
+            angle: 0.5,
+            color: 0xa8a29e,
+            hexStr: '#a8a29e',
+            temp: '167°C (Gündüz 430°C)',
+            distSun: '58 Milyon km',
+            moons: '0',
+            description: 'Güneş Sisteminin en küçük ve Güneşe en yakın gezegenidir. Atmosferi neredeyse hiç olmadığı için yüzeyi göktaşı kraterleriyle kaplıdır.',
+            mission: {
+                title: 'Kızgın Göktaşı Temizliği',
+                desc: 'Merkür kraterlerinden fırlayan 6 adet kızgın asteroiti parçala!',
+                type: 'ASTEROID',
+                targetCount: 6,
+                reward: 1000
+            }
+        },
+        {
+            id: 'venus',
+            name: 'VENÜS',
+            subtitle: 'Sera Etkisi Cehennemi',
+            type: 'Karasal Gezegen',
+            radius: 3.1,
+            distance: 72,
+            orbitSpeed: 0.13,
+            angle: 2.1,
+            color: 0xfbbf24,
+            hexStr: '#fbbf24',
+            temp: '464°C',
+            distSun: '108 Milyon km',
+            moons: '0',
+            description: 'Kalın karbondioksit bulutları nedeniyle Güneş Sisteminin en sıcak gezegenidir.',
+            mission: {
+                title: 'Asit Bulutu Korsan Avı',
+                desc: 'Venüs yörüngesinde istasyonumuza saldıran 5 korsan avcısını imha et!',
+                type: 'ENEMY',
+                targetCount: 5,
+                reward: 1300
+            }
+        },
+        {
+            id: 'earth',
+            name: 'DÜNYA',
+            subtitle: 'Mavi Yuva',
+            type: 'Yaşanabilir Gezegen',
+            radius: 3.4,
+            distance: 105,
+            orbitSpeed: 0.10,
+            angle: 3.8,
+            color: 0x3b82f6,
+            hexStr: '#3b82f6',
+            temp: '15°C',
+            distSun: '150 Milyon km',
+            moons: '1 (Ay)',
+            description: 'Yüzeyinin %71’i sıvı suyla kaplı olan ve bilinen tek yaşam barındıran gezegendir.',
+            mission: {
+                title: 'Ay Savunma Hattı Operasyonu',
+                desc: 'Dünya ve Ay arasındaki geçiş rotasına pusu kuran 7 tehlikeyi temizle!',
+                type: 'MIXED',
+                targetCount: 7,
+                reward: 1600
+            }
+        },
+        {
+            id: 'mars',
+            name: 'MARS',
+            subtitle: 'Kızıl Gezegen',
+            type: 'Karasal Gezegen',
+            radius: 2.7,
+            distance: 140,
+            orbitSpeed: 0.08,
+            angle: 5.2,
+            color: 0xef4444,
+            hexStr: '#ef4444',
+            temp: '-65°C',
+            distSun: '228 Milyon km',
+            moons: '2 (Phobos, Deimos)',
+            description: 'Yüzeyindeki yoğun demir oksit nedeniyle kızıl renkte görünür.',
+            mission: {
+                title: 'Kızıl Koloni Koruma Görevi',
+                desc: 'Mars araştırma üssünü kuşatan 8 düşman savaş gemisini etkisiz hale getir!',
+                type: 'ENEMY',
+                targetCount: 8,
+                reward: 2000
+            }
+        },
+        {
+            id: 'jupiter',
+            name: 'JÜPİTER',
+            subtitle: 'Güneş Sisteminin Devi',
+            type: 'Gaz Devi',
+            radius: 6.8,
+            distance: 195,
+            orbitSpeed: 0.05,
+            angle: 1.2,
+            color: 0xd97706,
+            hexStr: '#d97706',
+            temp: '-110°C',
+            distSun: '778 Milyon km',
+            moons: '95',
+            description: 'Güneş Sistemindeki diğer tüm gezegenlerin toplam kütlesinden 2.5 kat büyüktür.',
+            mission: {
+                title: 'Büyük Fırtına Göktaşı Yağmuru',
+                desc: 'Jüpiter’in devasa çekim kuvvetiyle savrulan 10 asteroiti paramparça et!',
+                type: 'ASTEROID',
+                targetCount: 10,
+                reward: 2600
+            }
+        },
+        {
+            id: 'saturn',
+            name: 'SATÜRN',
+            subtitle: 'Halkaların Efendisi',
+            type: 'Gaz Devi',
+            radius: 5.6,
+            distance: 255,
+            orbitSpeed: 0.035,
+            angle: 4.5,
+            color: 0xfde047,
+            hexStr: '#fde047',
+            temp: '-140°C',
+            distSun: '1.43 Milyar km',
+            moons: '146',
+            description: 'Buz ve kaya parçacıklarından oluşan muazzam halka sistemiyle tanınır.',
+            mission: {
+                title: 'Buz Halkaları Temizliği',
+                desc: 'Satürn’ün parlak halkaları arasına gizlenen 12 düşman hedefini yok et!',
+                type: 'MIXED',
+                targetCount: 12,
+                reward: 3500
+            }
+        }
+    ];
+
+    // ==========================================
+    // 2. SES MOTORU (Tone.js)
+    // ==========================================
+    class SoundEngine {
+        constructor() {
+            this.enabled = true;
+            this.initialized = false;
+        }
+
+        async init() {
+            if (this.initialized) return;
+            try {
+                await Tone.start();
+                
+                this.laserSynth = new Tone.Synth({
+                    oscillator: { type: "sawtooth" },
+                    envelope: { attack: 0.005, decay: 0.1, sustain: 0, release: 0.1 }
+                }).toDestination();
+                this.laserSynth.volume.value = -14;
+
+                this.enemyLaserSynth = new Tone.Synth({
+                    oscillator: { type: "square" },
+                    envelope: { attack: 0.01, decay: 0.15, sustain: 0, release: 0.1 }
+                }).toDestination();
+                this.enemyLaserSynth.volume.value = -17;
+
+                this.explosionSynth = new Tone.NoiseSynth({
+                    noise: { type: "brown" },
+                    envelope: { attack: 0.01, decay: 0.35, sustain: 0, release: 0.2 }
+                }).toDestination();
+                this.explosionSynth.volume.value = -6;
+
+                this.hitSynth = new Tone.MembraneSynth({
+                    pitchDecay: 0.05,
+                    octaves: 4,
+                    oscillator: { type: "sine" },
+                    envelope: { attack: 0.001, decay: 0.25, sustain: 0.01, release: 0.2 }
+                }).toDestination();
+                this.hitSynth.volume.value = -4;
+
+                this.powerupSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+                this.powerupSynth.volume.value = -8;
+
+                this.initialized = true;
+            } catch (e) {
+                console.warn("Ses başlatılamadı:", e);
+            }
+        }
+
+        playLaser(isTriple = false) {
+            if (!this.enabled || !this.initialized) return;
+            const now = Tone.now();
+            this.laserSynth.triggerAttackRelease(isTriple ? "E6" : "C6", "32n", now);
+            this.laserSynth.frequency.rampTo("C3", 0.08, now);
+        }
+
+        playEnemyLaser() {
+            if (!this.enabled || !this.initialized) return;
+            const now = Tone.now();
+            this.enemyLaserSynth.triggerAttackRelease("A3", "16n", now);
+            this.enemyLaserSynth.frequency.rampTo("D2", 0.12, now);
+        }
+
+        playExplosion() {
+            if (!this.enabled || !this.initialized) return;
+            this.explosionSynth.triggerAttackRelease("8n", Tone.now());
+        }
+
+        playHit() {
+            if (!this.enabled || !this.initialized) return;
+            this.hitSynth.triggerAttackRelease("G1", "8n", Tone.now());
+        }
+
+        playPowerup() {
+            if (!this.enabled || !this.initialized) return;
+            const now = Tone.now();
+            this.powerupSynth.triggerAttackRelease(["C5", "E5", "G5", "C6"], "16n", now);
+        }
+
+        playSelect() {
+            if (!this.enabled || !this.initialized) return;
+            const now = Tone.now();
+            this.powerupSynth.triggerAttackRelease(["G5", "B5"], "32n", now);
+        }
+
+        toggle() {
+            this.enabled = !this.enabled;
+            return this.enabled;
+        }
+    }
+
+    const sound = new SoundEngine();
+
+    // ==========================================
+    // 3. OYUN DEĞİŞKENLERİ VE DURUM YÖNETİMİ
+    // ==========================================
+    let scene, camera, renderer, raycaster;
+    let playerShip, engineGlow, shieldMesh;
+    let sunMesh, starField;
+    
+    // Güneş Sistemi ve Görev Grupları
+    let solarSystemGroup = new THREE.Group();
+    let missionGroup = new THREE.Group();
+    let planetObjects = []; // { data, mesh, group, orbitLine, labelEl }
+
+    // Görev Nesneleri
+    let lasers = [];
+    let enemyLasers = [];
+    let asteroids = [];
+    let enemies = [];
+    let powerups = [];
+    let particles = [];
+
+    // Oyun Durumu: 'START', 'EXPLORE', 'MISSION', 'GAMEOVER'
+    let gameState = 'START';
+    let score = 0;
+    let health = 100;
+    let boostEnergy = 100;
+    let isBoosting = false;
+    let tripleShotTimer = 0;
+    let screenShake = 0;
+
+    // Seçili Gezegen ve Aktif Görev
+    let selectedPlanet = null;
+    let activeMissionPlanet = null;
+    let missionProgress = 0;
+    let completedPlanets = new Set();
+
+    // Keşif Modu Kamera ve Gemi Fiziği
+    let shipYaw = 0; // Yatay yönelim açısı
+    let shipVelocity = new THREE.Vector3();
+    let camYawOffset = 0;
+    let camPitch = 0.28;
+    let isDraggingCamera = false;
+    let previousMousePos = { x: 0, y: 0 };
+
+    // Görev Modu Hedef Pozisyon
+    let missionTargetPos = { x: 0, y: 0 };
+    const missionBounds = { x: 14, y: 8 };
+
+    let lastShotTime = 0;
+    const shotCooldown = 165;
+
+    // Hangar & Geliştirme Durumu
+    let playerUpgrades = { laserLevel: 1, engineLevel: 1, activeShip: 'standard' };
+
+    // Sanal Joystick Durumu (-1 ile +1 arası değerler)
+    const joystickState = {
+        active: false,
+        x: 0, // Sağa/Sola (-1 sol, +1 sağ)
+        y: 0  // Yukarı/Aşağı (-1 yukarı/ileri, +1 aşağı/geri)
+    };
+
+    const keys = {
+        ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false,
+        w: false, s: false, a: false, d: false,
+        W: false, S: false, A: false, D: false,
+        q: false, e: false, Q: false, E: false,
+        " ": false, Shift: false
+    };
+
+    const clock = new THREE.Clock();
+    let spawnTimer = 0;
+
+    // Radar Canvas
+    const radarCanvas = document.getElementById('radar-canvas');
+    const radarCtx = radarCanvas.getContext('2d');
+    const labelsContainer = document.getElementById('planet-labels-container');
+
+    // ==========================================
+    // 4. THREE.JS SAHNE VE GÜNEŞ SİSTEMİ KURULUMU
+    // ==========================================
+    function initThree() {
+        const container = document.getElementById('canvas-wrapper');
+
+        scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x030308, 0.0018);
+
+        camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 1200);
+        camera.position.set(0, 25, 130);
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        container.appendChild(renderer.domElement);
+
+        raycaster = new THREE.Raycaster();
+
+        // Işıklandırma
+        const ambientLight = new THREE.AmbientLight(0x405070, 1.3);
+        scene.add(ambientLight);
+
+        // Güneş Merkez Işığı
+        const sunLight = new THREE.PointLight(0xfff3d6, 2.5, 600);
+        sunLight.position.set(0, 0, 0);
+        scene.add(sunLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(20, 40, 20);
+        scene.add(dirLight);
+
+        // Yıldız Tarlası
+        createStarfield();
+
+        // Güneş Sistemini Oluştur
+        scene.add(solarSystemGroup);
+        buildSolarSystem();
+
+        // Görev Sahnesi Grubunu Ekle (Başlangıçta gizli)
+        missionGroup.visible = false;
+        scene.add(missionGroup);
+
+        // Oyuncu Uzay Gemisi
+        createPlayerShip();
+
+        window.addEventListener('resize', onWindowResize);
+    }
+
+    function createStarfield() {
+        const starGeo = new THREE.BufferGeometry();
+        const starCount = 3000;
+        const positions = new Float32Array(starCount * 3);
+        const colors = new Float32Array(starCount * 3);
+
+        for (let i = 0; i < starCount * 3; i += 3) {
+            positions[i] = (Math.random() - 0.5) * 900;
+            positions[i + 1] = (Math.random() - 0.5) * 900;
+            positions[i + 2] = (Math.random() - 0.5) * 900;
+
+            const colorChoice = Math.random();
+            if (colorChoice > 0.8) {
+                colors[i] = 0.5; colors[i + 1] = 0.85; colors[i + 2] = 1.0;
+            } else if (colorChoice > 0.6) {
+                colors[i] = 1.0; colors[i + 1] = 0.85; colors[i + 2] = 0.6;
+            } else {
+                colors[i] = 0.9; colors[i + 1] = 0.95; colors[i + 2] = 1.0;
+            }
+        }
+
+        starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        starGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const starMat = new THREE.PointsMaterial({
+            size: 1.4,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.9
+        });
+
+        starField = new THREE.Points(starGeo, starMat);
+        scene.add(starField);
+    }
+
+    function buildSolarSystem() {
+        // 1. GÜNEŞ (Merkez)
+        const sunGeo = new THREE.SphereGeometry(16, 32, 32);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xffb703 });
+        sunMesh = new THREE.Mesh(sunGeo, sunMat);
+        solarSystemGroup.add(sunMesh);
+
+        // Güneş Hale (Glow) Katmanları
+        const glow1 = new THREE.Mesh(
+            new THREE.SphereGeometry(19, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xfb8500, transparent: true, opacity: 0.35 })
+        );
+        const glow2 = new THREE.Mesh(
+            new THREE.SphereGeometry(23, 32, 32),
+            new THREE.MeshBasicMaterial({ color: 0xff5400, transparent: true, opacity: 0.15 })
+        );
+        sunMesh.add(glow1);
+        sunMesh.add(glow2);
+
+        // 2. GEZEGENLER VE YÖRÜNGELERİ
+        PLANETS_DATA.forEach(pData => {
+            const pGroup = new THREE.Group();
+
+            // Yörünge Halkası (Çizgi)
+            const orbitCurve = new THREE.EllipseCurve(0, 0, pData.distance, pData.distance, 0, 2 * Math.PI, false, 0);
+            const orbitPoints = orbitCurve.getPoints(128);
+            const orbitGeo = new THREE.BufferGeometry().setFromPoints(orbitPoints.map(p => new THREE.Vector3(p.x, 0, p.y)));
+            const orbitMat = new THREE.LineBasicMaterial({ color: pData.color, transparent: true, opacity: 0.28 });
+            const orbitLine = new THREE.Line(orbitGeo, orbitMat);
+            solarSystemGroup.add(orbitLine);
+
+            // Gezegen Küresi
+            const geo = new THREE.SphereGeometry(pData.radius, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({
+                color: pData.color,
+                roughness: 0.65,
+                metalness: 0.15
+            });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.userData = { planetData: pData }; // Tıklama (Raycasting) için veri
+            pGroup.add(mesh);
+
+            // Seçim Halkası (Tıklanabilir alanı genişletir ve görsel şıklık katar)
+            const ringSelectGeo = new THREE.RingGeometry(pData.radius * 1.35, pData.radius * 1.48, 32);
+            ringSelectGeo.rotateX(-Math.PI / 2);
+            const ringSelectMat = new THREE.MeshBasicMaterial({
+                color: pData.color,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.4
+            });
+            pGroup.add(new THREE.Mesh(ringSelectGeo, ringSelectMat));
+
+            // Satürn'e Özel Devasa Halkalar
+            if (pData.id === 'saturn') {
+                const saturnRingGeo = new THREE.RingGeometry(pData.radius * 1.4, pData.radius * 2.4, 48);
+                saturnRingGeo.rotateX(Math.PI / 2.4);
+                const saturnRingMat = new THREE.MeshStandardMaterial({
+                    color: 0xfef08a,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.75,
+                    roughness: 0.5
+                });
+                pGroup.add(new THREE.Mesh(saturnRingGeo, saturnRingMat));
+            }
+
+            // Dünya'ya Özel Ay Uydusu
+            if (pData.id === 'earth') {
+                const moon = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.75, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.9 })
+                );
+                moon.position.set(pData.radius + 2.8, 0.5, 0);
+                pGroup.add(moon);
+            }
+
+            // Başlangıç Yörünge Konumu
+            pGroup.position.x = Math.cos(pData.angle) * pData.distance;
+            pGroup.position.z = Math.sin(pData.angle) * pData.distance;
+            solarSystemGroup.add(pGroup);
+
+            // HTML İsim Etiketi Oluştur (Üzerine tıklanabilir)
+            const labelEl = document.createElement('div');
+            labelEl.className = 'planet-label hidden';
+            labelEl.innerHTML = `
+                <div class="px-2.5 py-1 rounded-full bg-slate-950/80 border border-cyan-400/50 backdrop-blur-sm flex items-center gap-1.5 shadow-lg">
+                    <span class="w-2 h-2 rounded-full" style="background-color: ${pData.hexStr}"></span>
+                    <span class="text-[10px] font-bold text-white tracking-wider">${pData.name}</span>
+                    <i class="fas fa-check-circle text-emerald-400 text-[10px] hidden check-icon"></i>
+                </div>
+            `;
+            labelEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (gameState === 'EXPLORE') selectPlanet(pData);
+            });
+            labelsContainer.appendChild(labelEl);
+
+            planetObjects.push({ data: pData, mesh, group: pGroup, orbitLine, labelEl });
+        });
+    }
+
+    function createPlayerShip() {
+        playerShip = new THREE.Group();
+
+        const ship = playerUpgrades.activeShip;
+        let bodyColor = 0xe2e8f0;
+        let glowColor = 0x00f3ff;
+        let isLarge = false;
+
+        if (ship === 'titan') { bodyColor = 0x9333ea; }
+        else if (ship === 'hunter') { bodyColor = 0x10b981; glowColor = 0x10b981; }
+        else if (ship === 'photon') { bodyColor = 0xef4444; glowColor = 0xef4444; }
+        else if (ship === 'nebula') { bodyColor = 0x3b82f6; glowColor = 0x3b82f6; }
+        else if (ship === 'quantum') { bodyColor = 0xf59e0b; glowColor = 0xf59e0b; }
+        else if (ship === 'pulsar') { bodyColor = 0x6366f1; glowColor = 0x818cf8; }
+        else if (ship === 'supernova') { bodyColor = 0x14b8a6; glowColor = 0x2dd4bf; isLarge = true; }
+        else if (ship === 'phantom') { bodyColor = 0xf43f5e; glowColor = 0xfb7185; }
+        else if (ship === 'emperor') { bodyColor = 0xfbbf24; glowColor = 0xf59e0b; isLarge = true; }
+
+        const bodyGeo = new THREE.ConeGeometry(isLarge ? 1.2 : 0.85, isLarge ? 4.5 : 3.8, 8);
+        bodyGeo.rotateX(-Math.PI / 2);
+        const bodyMat = new THREE.MeshStandardMaterial({ color: bodyColor, metalness: 0.8, roughness: 0.2 });
+        playerShip.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+        const cockpitGeo = new THREE.SphereGeometry(0.45, 16, 16);
+        cockpitGeo.scale(0.8, 0.6, 1.8);
+        const cockpitMat = new THREE.MeshStandardMaterial({ color: glowColor, emissive: glowColor, emissiveIntensity: 0.4, metalness: 0.9, roughness: 0.1 });
+        const cockpit = new THREE.Mesh(cockpitGeo, cockpitMat);
+        cockpit.position.set(0, 0.35, -0.2);
+        playerShip.add(cockpit);
+
+        const wingGeo = new THREE.BoxGeometry(isLarge ? 5.8 : 4.4, 0.12, 1.4);
+        const wingMat = new THREE.MeshStandardMaterial({ color: bodyColor, metalness: 0.6, roughness: 0.4 });
+        const wings = new THREE.Mesh(wingGeo, wingMat);
+        wings.position.set(0, 0, 0.6);
+        playerShip.add(wings);
+
+        const glowGeo = new THREE.ConeGeometry(0.45, 1.8, 12);
+        glowGeo.rotateX(Math.PI / 2);
+        const glowMat = new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.85 });
+        engineGlow = new THREE.Mesh(glowGeo, glowMat);
+        engineGlow.position.set(0, 0, 2.3);
+        playerShip.add(engineGlow);
+
+        const shieldGeo = new THREE.SphereGeometry(2.5, 24, 24);
+        const shieldMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff, transparent: true, opacity: 0.0, wireframe: true });
+        shieldMesh = new THREE.Mesh(shieldGeo, shieldMat);
+        playerShip.add(shieldMesh);
+
+        playerShip.position.set(0, 6, 118);
+        scene.add(playerShip);
+    }
+
+    function buyShip(shipType, cost) {
+        if (score >= cost) {
+            score -= cost;
+            document.getElementById('score-display').innerText = score;
+            playerUpgrades.activeShip = shipType;
+            sound.playPowerup();
+            scene.remove(playerShip);
+            createPlayerShip();
+            alertHangarMsg("Yeni gemi başarıyla kuşanıldı!");
+        } else {
+            alertHangarMsg("Yetersiz kredi!");
+        }
+    }
+
+    function upgradeStat(statType, cost) {
+        if (statType === 'laser' && playerUpgrades.laserLevel >= 30) {
+            alertHangarMsg("Lazer gücü maksimum seviyede (30)!");
+            return;
+        }
+        if (statType === 'engine' && playerUpgrades.engineLevel >= 30) {
+            alertHangarMsg("Motor gücü maksimum seviyede (30)!");
+            return;
+        }
+
+        if (score >= cost) {
+            score -= cost;
+            document.getElementById('score-display').innerText = score;
+            if (statType === 'laser') {
+                playerUpgrades.laserLevel++;
+                document.getElementById('upgrade-laser-lvl').innerText = playerUpgrades.laserLevel;
+            } else if (statType === 'engine') {
+                playerUpgrades.engineLevel++;
+                document.getElementById('upgrade-engine-lvl').innerText = playerUpgrades.engineLevel;
+            }
+            sound.playPowerup();
+            alertHangarMsg("Sistem başarıyla yükseltildi!");
+        } else {
+            alertHangarMsg("Yetersiz kredi!");
+        }
+    }
+
+    function alertHangarMsg(msg) {
+        // Hangar içi bilgilendirme mesajı
+        const disp = document.getElementById('hangar-credits-display');
+        const oldText = disp.innerText;
+        disp.innerText = msg;
+        setTimeout(() => { disp.innerText = score; }, 2000);
+    }
+
+    // ==========================================
+    // 5. GEZEGEN SEÇİMİ, BİLGİ MODALI VE GÖREV SİSTEMİ
+    // ==========================================
+    function selectPlanet(pData) {
+        selectedPlanet = pData;
+        sound.playSelect();
+
+        const card = document.getElementById('planet-action-card');
+        card.classList.remove('hidden');
+
+        document.getElementById('card-planet-dot').style.backgroundColor = pData.hexStr;
+        document.getElementById('card-planet-name').innerText = pData.name;
+        document.getElementById('card-mission-title').innerText = pData.mission.title;
+        document.getElementById('card-mission-reward').innerText = pData.mission.reward;
+
+        updateSelectedPlanetDistance();
+    }
+
+    function updateSelectedPlanetDistance() {
+        if (!selectedPlanet || gameState !== 'EXPLORE') return;
+        const pObj = planetObjects.find(p => p.data.id === selectedPlanet.id);
+        if (!pObj) return;
+
+        const dist = Math.round(playerShip.position.distanceTo(pObj.group.position) * 10);
+        document.getElementById('card-planet-subtitle').innerText = `${selectedPlanet.subtitle} • Mesafe: ${dist} km`;
+    }
+
+    function openPlanetInfoModal() {
+        if (!selectedPlanet) return;
+        sound.playSelect();
+
+        document.getElementById('modal-planet-avatar').style.background = `radial-gradient(circle at 30% 30%, ${selectedPlanet.hexStr}, #0f172a)`;
+        document.getElementById('modal-planet-type').innerText = selectedPlanet.type;
+        document.getElementById('modal-planet-name').innerText = selectedPlanet.name;
+        document.getElementById('modal-planet-subtitle').innerText = selectedPlanet.subtitle;
+        document.getElementById('modal-stat-temp').innerText = selectedPlanet.temp;
+        document.getElementById('modal-stat-dist').innerText = selectedPlanet.distSun;
+        document.getElementById('modal-stat-moons').innerText = selectedPlanet.moons;
+        document.getElementById('modal-planet-desc').innerText = selectedPlanet.description;
+
+        document.getElementById('planet-info-modal').classList.remove('hidden');
+    }
+
+    function startPlanetMission() {
+        if (!selectedPlanet) return;
+        sound.playPowerup();
+
+        activeMissionPlanet = selectedPlanet;
+        missionProgress = 0;
+        gameState = 'MISSION';
+
+        document.getElementById('planet-action-card').classList.add('hidden');
+        document.getElementById('planet-info-modal').classList.add('hidden');
+        document.getElementById('radar-container').classList.add('hidden');
+        document.getElementById('altitude-controls').classList.add('hidden');
+        labelsContainer.classList.add('hidden');
+
+        const modeBadge = document.getElementById('mode-badge');
+        modeBadge.innerHTML = `<i class="fas fa-fighter-jet mr-1"></i> GÖREV MODU: ${activeMissionPlanet.name}`;
+        modeBadge.className = 'px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400 text-amber-300 font-bold text-xs';
+
+        const tracker = document.getElementById('mission-tracker-ui');
+        tracker.classList.remove('hidden');
+        document.getElementById('active-mission-planet').innerText = activeMissionPlanet.name;
+        document.getElementById('active-mission-desc').innerText = activeMissionPlanet.mission.desc;
+        updateMissionProgressUI();
+
+        solarSystemGroup.visible = false;
+        missionGroup.visible = true;
+        clearMissionEntities();
+
+        missionTargetPos = { x: 0, y: 0 };
+        playerShip.position.set(0, 0, 5);
+        playerShip.rotation.set(0, 0, 0);
+
+        camera.position.set(0, 3, 14);
+        camera.lookAt(0, 0, -5);
+    }
+
+    function updateMissionProgressUI() {
+        if (!activeMissionPlanet) return;
+        const target = activeMissionPlanet.mission.targetCount;
+        const pct = Math.min(100, (missionProgress / target) * 100);
+        document.getElementById('mission-progress-bar').style.width = `${pct}%`;
+        document.getElementById('mission-progress-text').innerText = `${missionProgress} / ${target}`;
+    }
+
+    function completeMission() {
+        sound.playPowerup();
+        gameState = 'EXPLORE';
+
+        const reward = activeMissionPlanet.mission.reward;
+        score += reward;
+        health = 100;
+        updateHealthUI();
+        document.getElementById('score-display').innerText = score;
+
+        completedPlanets.add(activeMissionPlanet.id);
+        document.getElementById('completed-missions-display').innerText = `${completedPlanets.size}/${PLANETS_DATA.length}`;
+
+        // Gezegen etiketine tik ikonu ekle
+        const pObj = planetObjects.find(p => p.data.id === activeMissionPlanet.id);
+        if (pObj) {
+            pObj.labelEl.querySelector('.check-icon').classList.remove('hidden');
+        }
+
+        document.getElementById('complete-planet-msg').innerText = `${activeMissionPlanet.name}: ${activeMissionPlanet.mission.title} başarıyla tamamlandı!`;
+        document.getElementById('complete-reward-text').innerText = `+${reward} KREDİ & TAM KALKAN`;
+        document.getElementById('mission-complete-modal').classList.remove('hidden');
+
+        returnToSolarSystem(false);
+    }
+
+    function returnToSolarSystem(showCard = true) {
+        gameState = 'EXPLORE';
+        clearMissionEntities();
+
+        missionGroup.visible = false;
+        solarSystemGroup.visible = true;
+
+        document.getElementById('mission-tracker-ui').classList.add('hidden');
+        document.getElementById('altitude-controls').classList.remove('hidden');
+        if (window.innerWidth >= 640) {
+            document.getElementById('radar-container').classList.remove('hidden');
+        }
+        labelsContainer.classList.remove('hidden');
+
+        const modeBadge = document.getElementById('mode-badge');
+        modeBadge.innerHTML = `<i class="fas fa-compass mr-1"></i> KEŞİF MODU`;
+        modeBadge.className = 'px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-400 text-cyan-300 font-bold text-xs';
+
+        // Gemiyi seçili gezegenin güvenli yakınına yerleştir
+        if (activeMissionPlanet) {
+            const pObj = planetObjects.find(p => p.data.id === activeMissionPlanet.id);
+            if (pObj) {
+                const offset = pObj.data.radius + 12;
+                playerShip.position.copy(pObj.group.position).add(new THREE.Vector3(offset, 3, offset));
+                shipVelocity.set(0, 0, 0);
+            }
+            if (showCard) selectPlanet(activeMissionPlanet);
+        }
+        activeMissionPlanet = null;
+    }
+
+    function clearMissionEntities() {
+        [lasers, enemyLasers, asteroids, enemies, powerups, particles].forEach(arr => {
+            arr.forEach(obj => missionGroup.remove(obj));
+            arr.length = 0;
+        });
+    }
+
+    // ==========================================
+    // 6. SAVAŞ VE SİLAH MEKANİKLERİ
+    // ==========================================
+    function fireLaser() {
+        const now = Date.now();
+        if (now - lastShotTime < shotCooldown) return;
+        if (gameState !== 'MISSION' && gameState !== 'EXPLORE') return;
+        lastShotTime = now;
+
+        const isTriple = tripleShotTimer > 0;
+        sound.playLaser(isTriple);
+
+        if (gameState === 'MISSION') {
+            [-1.8, 1.8].forEach(offsetX => {
+                createMissionBullet(playerShip.position.x + offsetX, playerShip.position.y, playerShip.position.z - 1.2, false);
+            });
+            if (isTriple) {
+                createMissionBullet(playerShip.position.x, playerShip.position.y + 0.1, playerShip.position.z - 1.8, true);
+            }
+        } else if (gameState === 'EXPLORE') {
+            // Keşif modunda geminin baktığı yöne doğru lazer atışı (görsel şölen!)
+            const forward = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), shipYaw);
+            const laserGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5, 8);
+            laserGeo.rotateX(Math.PI / 2);
+            const laserMat = new THREE.MeshBasicMaterial({ color: 0x00f3ff });
+            const laser = new THREE.Mesh(laserGeo, laserMat);
+            laser.position.copy(playerShip.position).addScaledVector(forward, 2.5);
+            laser.rotation.y = shipYaw;
+            laser.userData = { velocity: forward.multiplyScalar(140), life: 1.2 };
+            solarSystemGroup.add(laser);
+            lasers.push(laser);
+        }
+    }
+
+    function createMissionBullet(x, y, z, isSuper = false) {
+        const laserGeo = new THREE.CylinderGeometry(isSuper ? 0.14 : 0.08, isSuper ? 0.14 : 0.08, 2.5, 8);
+        laserGeo.rotateX(Math.PI / 2);
+        const laserMat = new THREE.MeshBasicMaterial({ color: isSuper ? 0xfbbf24 : (playerUpgrades.activeShip === 'hunter' ? 0x10b981 : 0x00f3ff) });
+        const laser = new THREE.Mesh(laserGeo, laserMat);
+
+        laser.position.set(x, y, z);
+        laser.userData = { damage: (isSuper ? 2 : 1) * playerUpgrades.laserLevel };
+        missionGroup.add(laser);
+        lasers.push(laser);
+    }
+
+    function spawnMissionEnemy() {
+        const enemyGroup = new THREE.Group();
+        const pColor = activeMissionPlanet ? activeMissionPlanet.color : 0xf43f5e;
+
+        const hullGeo = new THREE.OctahedronGeometry(1.3, 1);
+        hullGeo.scale(1.4, 0.45, 1.2);
+        const hullMat = new THREE.MeshStandardMaterial({ color: 0x1e1b4b, metalness: 0.85, roughness: 0.2 });
+        enemyGroup.add(new THREE.Mesh(hullGeo, hullMat));
+
+        const coreGeo = new THREE.SphereGeometry(0.55, 16, 16);
+        const coreMat = new THREE.MeshBasicMaterial({ color: pColor });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        core.position.y = 0.2;
+        enemyGroup.add(core);
+
+        const bladeGeo = new THREE.BoxGeometry(3.4, 0.1, 0.8);
+        const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe11d48, metalness: 0.6 });
+        enemyGroup.add(new THREE.Mesh(bladeGeo, bladeMat));
+
+        enemyGroup.position.set(
+            (Math.random() - 0.5) * (missionBounds.x * 1.8),
+            (Math.random() - 0.5) * (missionBounds.y * 1.6),
+            -110
+        );
+
+        enemyGroup.userData = {
+            hp: 3,
+            speed: 16,
+            strafeSpeed: (Math.random() > 0.5 ? 1 : -1) * (4 + Math.random() * 4),
+            shootTimer: Math.random() * 1.5
+        };
+
+        missionGroup.add(enemyGroup);
+        enemies.push(enemyGroup);
+    }
+
+    function fireEnemyLaser(enemyPos) {
+        sound.playEnemyLaser();
+        const geo = new THREE.SphereGeometry(0.32, 8, 8);
+        const mat = new THREE.MeshBasicMaterial({ color: 0xff2a55 });
+        const bullet = new THREE.Mesh(geo, mat);
+        bullet.position.copy(enemyPos);
+        bullet.position.z += 1.5;
+
+        const dir = new THREE.Vector3().subVectors(playerShip.position, bullet.position).normalize();
+        bullet.userData = { velocity: dir.multiplyScalar(42) };
+
+        missionGroup.add(bullet);
+        enemyLasers.push(bullet);
+    }
+
+    function spawnMissionAsteroid() {
+        const radius = Math.random() * 1.4 + 0.9;
+        const geo = new THREE.DodecahedronGeometry(radius, 1);
+        
+        const posAttr = geo.attributes.position;
+        for (let i = 0; i < posAttr.count; i++) {
+            const v = new THREE.Vector3().fromBufferAttribute(posAttr, i);
+            v.multiplyScalar(0.85 + Math.random() * 0.3);
+            posAttr.setXYZ(i, v.x, v.y, v.z);
+        }
+        geo.computeVertexNormals();
+
+        const mat = new THREE.MeshStandardMaterial({
+            color: activeMissionPlanet ? activeMissionPlanet.color : 0x64748b,
+            roughness: 0.85,
+            metalness: 0.2,
+            flatShading: true
+        });
+
+        const asteroid = new THREE.Mesh(geo, mat);
+        asteroid.position.set(
+            (Math.random() - 0.5) * (missionBounds.x * 2.2),
+            (Math.random() - 0.5) * (missionBounds.y * 2.0),
+            -110
+        );
+
+        asteroid.userData = {
+            radius: radius,
+            speed: Math.random() * 14 + 22,
+            rotSpeed: { x: (Math.random() - 0.5) * 3, y: (Math.random() - 0.5) * 3 },
+            hp: radius > 1.7 ? 2 : 1
+        };
+
+        missionGroup.add(asteroid);
+        asteroids.push(asteroid);
+    }
+
+    function spawnPowerup(position) {
+        const type = Math.random() > 0.45 ? 'TRIPLE' : 'SHIELD';
+        const color = type === 'TRIPLE' ? 0x00f3ff : 0x10b981;
+
+        const group = new THREE.Group();
+        group.add(new THREE.Mesh(new THREE.OctahedronGeometry(0.65, 0), new THREE.MeshBasicMaterial({ color })));
+        group.add(new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.08, 8, 24), new THREE.MeshBasicMaterial({ color: 0xffffff })));
+
+        group.position.copy(position);
+        group.userData = { type };
+
+        missionGroup.add(group);
+        powerups.push(group);
+    }
+
+    function createExplosion(position, colorHex, count = 20) {
+        const geo = new THREE.BoxGeometry(0.28, 0.28, 0.28);
+        const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+
+        for (let i = 0; i < count; i++) {
+            const particle = new THREE.Mesh(geo, mat);
+            particle.position.copy(position);
+            particle.userData = {
+                velocity: new THREE.Vector3((Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20),
+                life: 1.0
+            };
+            missionGroup.add(particle);
+            particles.push(particle);
+        }
+    }
+
+    function registerMissionKill() {
+        if (gameState !== 'MISSION' || !activeMissionPlanet) return;
+        missionProgress++;
+        updateMissionProgressUI();
+        score += 150;
+        document.getElementById('score-display').innerText = score;
+
+        if (missionProgress >= activeMissionPlanet.mission.targetCount) {
+            completeMission();
+        }
+    }
+
+    function updateHealthUI() {
+        const healthBar = document.getElementById('health-bar');
+        healthBar.style.width = `${health}%`;
+        if (health <= 30) {
+            healthBar.className = "h-full bg-gradient-to-r from-red-600 to-rose-500 transition-all duration-300";
+        } else if (health <= 60) {
+            healthBar.className = "h-full bg-gradient-to-r from-amber-500 to-yellow-400 transition-all duration-300";
+        } else {
+            healthBar.className = "h-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-300";
+        }
+    }
+
+    function takeDamage(amount) {
+        health = Math.max(0, health - amount);
+        updateHealthUI();
+        screenShake = 0.6;
+
+        shieldMesh.material.color.setHex(0xff2a55);
+        shieldMesh.material.opacity = 0.5;
+        sound.playHit();
+
+        const damageFlash = document.getElementById('damage-flash');
+        damageFlash.style.opacity = '0.45';
+        setTimeout(() => { damageFlash.style.opacity = '0'; }, 150);
+
+        if (health <= 0) {
+            gameState = 'GAMEOVER';
+            playerShip.visible = false;
+            sound.playExplosion();
+            createExplosion(playerShip.position, 0x00f3ff, 50);
+            document.getElementById('game-over-screen').classList.remove('hidden');
+        }
+    }
+
+    // ==========================================
+    // 7. KONTROLLER VE RAYCASTING (TIKLAMA)
+    // ==========================================
+    function setupControls() {
+        window.addEventListener('keydown', (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = true;
+            if (e.key === " " && (gameState === 'MISSION' || gameState === 'EXPLORE')) {
+                e.preventDefault();
+                fireLaser();
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            if (keys.hasOwnProperty(e.key)) keys[e.key] = false;
+        });
+
+        // Fare ile Sürükleme (Kamera Döndürme) ve Gezegene Tıklama
+        let pointerDownPos = { x: 0, y: 0 };
+
+        renderer.domElement.addEventListener('pointerdown', (e) => {
+            if (joystickState.active) return;
+            isDraggingCamera = true;
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+            previousMousePos = { x: e.clientX, y: e.clientY };
+        });
+
+        window.addEventListener('pointermove', (e) => {
+            if (joystickState.active) return;
+            if (gameState === 'MISSION' && isDraggingCamera) {
+                const normX = (e.clientX / window.innerWidth) * 2 - 1;
+                const normY = -(e.clientY / window.innerHeight) * 2 + 1;
+                missionTargetPos.x = normX * missionBounds.x;
+                missionTargetPos.y = normY * missionBounds.y;
+            } else if (gameState === 'EXPLORE' && isDraggingCamera) {
+                const deltaX = e.clientX - previousMousePos.x;
+                const deltaY = e.clientY - previousMousePos.y;
+                camYawOffset -= deltaX * 0.006;
+                camPitch = Math.max(-0.4, Math.min(1.1, camPitch + deltaY * 0.005));
+                previousMousePos = { x: e.clientX, y: e.clientY };
+            }
+        });
+
+        window.addEventListener('pointerup', (e) => {
+            if (!isDraggingCamera) return;
+            isDraggingCamera = false;
+            const moveDist = Math.hypot(e.clientX - pointerDownPos.x, e.clientY - pointerDownPos.y);
+
+            // Eğer fare sürüklenmediyse (tıklama yapıldıysa)
+            if (moveDist < 6) {
+                if (gameState === 'EXPLORE') {
+                    checkPlanetClick(e.clientX, e.clientY);
+                } else if (gameState === 'MISSION') {
+                    fireLaser();
+                }
+            }
+        });
+
+        // ======================================
+        // SANAL JOYSTICK KURULUMU (Fare & Dokunmatik)
+        // ======================================
+        const joystickZone = document.getElementById('joystick-zone');
+        const joystickKnob = document.getElementById('joystick-knob');
+        let joystickPointerId = null;
+
+        function updateJoystickFromEvent(clientX, clientY) {
+            const rect = joystickZone.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const maxRadius = rect.width / 2 - 20;
+
+            let dx = clientX - centerX;
+            let dy = clientY - centerY;
+            const dist = Math.hypot(dx, dy);
+
+            if (dist > maxRadius) {
+                dx = (dx / dist) * maxRadius;
+                dy = (dy / dist) * maxRadius;
+            }
+
+            joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+            joystickState.x = dx / maxRadius;
+            joystickState.y = dy / maxRadius;
+        }
+
+        function resetJoystick() {
+            joystickState.active = false;
+            joystickState.x = 0;
+            joystickState.y = 0;
+            joystickPointerId = null;
+            joystickKnob.style.transform = `translate(0px, 0px)`;
+        }
+
+        joystickZone.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            joystickState.active = true;
+            joystickPointerId = e.pointerId;
+            joystickZone.setPointerCapture(e.pointerId);
+            updateJoystickFromEvent(e.clientX, e.clientY);
+        });
+
+        joystickZone.addEventListener('pointermove', (e) => {
+            if (!joystickState.active || e.pointerId !== joystickPointerId) return;
+            e.stopPropagation();
+            updateJoystickFromEvent(e.clientX, e.clientY);
+        });
+
+        joystickZone.addEventListener('pointerup', (e) => {
+            if (e.pointerId === joystickPointerId) {
+                e.stopPropagation();
+                resetJoystick();
+            }
+        });
+
+        joystickZone.addEventListener('pointercancel', (e) => {
+            if (e.pointerId === joystickPointerId) resetJoystick();
+        });
+
+        // Buton Olayları
+        document.getElementById('start-btn').addEventListener('click', startGame);
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            health = 100;
+            updateHealthUI();
+            playerShip.visible = true;
+            document.getElementById('game-over-screen').classList.add('hidden');
+            returnToSolarSystem(false);
+        });
+
+        document.getElementById('close-planet-card').addEventListener('click', () => {
+            document.getElementById('planet-action-card').classList.add('hidden');
+            selectedPlanet = null;
+        });
+
+        document.getElementById('btn-enter-planet').addEventListener('click', startPlanetMission);
+        document.getElementById('btn-planet-info').addEventListener('click', openPlanetInfoModal);
+        document.getElementById('close-info-modal').addEventListener('click', () => document.getElementById('planet-info-modal').classList.add('hidden'));
+        document.getElementById('modal-close-btn').addEventListener('click', () => document.getElementById('planet-info-modal').classList.add('hidden'));
+        document.getElementById('modal-start-mission-btn').addEventListener('click', startPlanetMission);
+        document.getElementById('return-solar-btn').addEventListener('click', () => document.getElementById('mission-complete-modal').classList.add('hidden'));
+        document.getElementById('abort-mission-btn').addEventListener('click', () => returnToSolarSystem(true));
+
+        document.getElementById('help-toggle').addEventListener('click', () => {
+            document.getElementById('start-screen').classList.remove('hidden');
+        });
+
+        // Hangar Modal Açma/Kapatma
+        document.getElementById('hangar-toggle').addEventListener('click', () => {
+            document.getElementById('hangar-credits-display').innerText = score;
+            document.getElementById('hangar-modal').classList.remove('hidden');
+        });
+        document.getElementById('close-hangar-modal').addEventListener('click', () => {
+            document.getElementById('hangar-modal').classList.add('hidden');
+        });
+
+        // Hangar Sekme Geçişleri
+        document.getElementById('tab-ships-btn').addEventListener('click', () => {
+            document.getElementById('tab-ships-content').classList.remove('hidden');
+            document.getElementById('tab-upgrades-content').classList.add('hidden');
+            document.getElementById('tab-ships-btn').className = 'px-4 py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/50 font-bold text-xs transition cursor-pointer';
+            document.getElementById('tab-upgrades-btn').className = 'px-4 py-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 font-bold text-xs transition cursor-pointer';
+        });
+        document.getElementById('tab-upgrades-btn').addEventListener('click', () => {
+            document.getElementById('tab-upgrades-content').classList.remove('hidden');
+            document.getElementById('tab-ships-content').classList.add('hidden');
+            document.getElementById('tab-upgrades-btn').className = 'px-4 py-2 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-400/50 font-bold text-xs transition cursor-pointer';
+            document.getElementById('tab-ships-btn').className = 'px-4 py-2 rounded-xl bg-slate-800 text-slate-300 border border-slate-700 font-bold text-xs transition cursor-pointer';
+        });
+
+        document.getElementById('sound-toggle').addEventListener('click', () => {
+            const isOn = sound.toggle();
+            document.getElementById('sound-icon').className = isOn ? 'fas fa-volume-up' : 'fas fa-volume-mute text-slate-500';
+        });
+
+        // Ekran Üstü Aksiyon Butonları (Ateş, Turbo, Yüksel/Alçal - Hem Fare Hem Dokunmatik)
+        let isFiringHeld = false;
+        const mobileFireBtn = document.getElementById('mobile-fire-btn');
+        mobileFireBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); isFiringHeld = true; fireLaser(); });
+        mobileFireBtn.addEventListener('pointerup', () => { isFiringHeld = false; });
+        mobileFireBtn.addEventListener('pointerleave', () => { isFiringHeld = false; });
+
+        const mobileBoostBtn = document.getElementById('mobile-boost-btn');
+        mobileBoostBtn.addEventListener('pointerdown', (e) => { e.stopPropagation(); keys.Shift = true; });
+        mobileBoostBtn.addEventListener('pointerup', () => { keys.Shift = false; });
+        mobileBoostBtn.addEventListener('pointerleave', () => { keys.Shift = false; });
+
+        const btnAscend = document.getElementById('btn-ascend');
+        btnAscend.addEventListener('pointerdown', (e) => { e.stopPropagation(); keys.e = true; });
+        btnAscend.addEventListener('pointerup', () => { keys.e = false; });
+        btnAscend.addEventListener('pointerleave', () => { keys.e = false; });
+
+        const btnDescend = document.getElementById('btn-descend');
+        btnDescend.addEventListener('pointerdown', (e) => { e.stopPropagation(); keys.q = true; });
+        btnDescend.addEventListener('pointerup', () => { keys.q = false; });
+        btnDescend.addEventListener('pointerleave', () => { keys.q = false; });
+
+        // Sürekli ateş butonuna basılı tutma kontrolü
+        setInterval(() => {
+            if (isFiringHeld && (gameState === 'MISSION' || gameState === 'EXPLORE')) {
+                fireLaser();
+            }
+        }, 120);
+    }
+
+    function checkPlanetClick(clientX, clientY) {
+        const mouse = new THREE.Vector2(
+            (clientX / window.innerWidth) * 2 - 1,
+            -(clientY / window.innerHeight) * 2 + 1
+        );
+        raycaster.setFromCamera(mouse, camera);
+
+        const meshes = planetObjects.map(p => p.mesh);
+        const intersects = raycaster.intersectObjects(meshes, false);
+
+        if (intersects.length > 0) {
+            const hitPlanetData = intersects[0].object.userData.planetData;
+            if (hitPlanetData) {
+                selectPlanet(hitPlanetData);
+            }
+        }
+    }
+
+    function startGame() {
+        sound.init();
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('hud').classList.remove('hidden');
+        document.getElementById('onscreen-controls').classList.remove('hidden');
+        labelsContainer.classList.remove('hidden');
+
+        if (gameState === 'START') {
+            gameState = 'EXPLORE';
+            // Başlangıçta Dünya'yı otomatik seçili göster ki oyuncu hemen butonları görsün
+            const earthData = PLANETS_DATA.find(p => p.id === 'earth');
+            selectPlanet(earthData);
+        }
+    }
+
+    // ==========================================
+    // 8. RADAR VE 3D ETİKET GÜNCELLEMELERİ
+    // ==========================================
+    function updatePlanetLabels() {
+        if (gameState !== 'EXPLORE') return;
+
+        planetObjects.forEach(pObj => {
+            const worldPos = new THREE.Vector3();
+            pObj.group.getWorldPosition(worldPos);
+            worldPos.y += pObj.data.radius + 1.5;
+
+            const screenPos = worldPos.clone().project(camera);
+
+            // Kameranın arkasındaysa gizle
+            if (screenPos.z > 1) {
+                pObj.labelEl.classList.add('hidden');
+                return;
+            }
+
+            const x = (screenPos.x * 0.5 + 0.5) * window.innerWidth;
+            const y = (-(screenPos.y * 0.5) + 0.5) * window.innerHeight;
+
+            pObj.labelEl.classList.remove('hidden');
+            pObj.labelEl.style.left = `${x}px`;
+            pObj.labelEl.style.top = `${y}px`;
+        });
+    }
+
+    function drawRadar() {
+        if (gameState !== 'EXPLORE') return;
+        const w = radarCanvas.width;
+        const h = radarCanvas.height;
+        const cx = w / 2;
+        const cy = h / 2;
+        const scale = 0.16; // 300 birimlik yarıçapı 48px'e sığdır
+
+        radarCtx.clearRect(0, 0, w, h);
+
+        // Radar halkaları
+        radarCtx.strokeStyle = 'rgba(56, 189, 248, 0.25)';
+        radarCtx.lineWidth = 1;
+        [16, 32, 46].forEach(r => {
+            radarCtx.beginPath();
+            radarCtx.arc(cx, cy, r, 0, Math.PI * 2);
+            radarCtx.stroke();
+        });
+
+        // Güneş (Merkez)
+        radarCtx.fillStyle = '#ffb703';
+        radarCtx.beginPath();
+        radarCtx.arc(cx, cy, 4, 0, Math.PI * 2);
+        radarCtx.fill();
+
+        // Gezegenler
+        planetObjects.forEach(pObj => {
+            const px = cx + pObj.group.position.x * scale;
+            const py = cy + pObj.group.position.z * scale;
+            radarCtx.fillStyle = pObj.data.hexStr;
+            radarCtx.beginPath();
+            radarCtx.arc(px, py, 2.5, 0, Math.PI * 2);
+            radarCtx.fill();
+        });
+
+        // Oyuncu Gemisi (Beyaz Üçgen/Nokta)
+        const sx = cx + playerShip.position.x * scale;
+        const sy = cy + playerShip.position.z * scale;
+        radarCtx.fillStyle = '#ffffff';
+        radarCtx.beginPath();
+        radarCtx.arc(sx, sy, 3, 0, Math.PI * 2);
+        radarCtx.fill();
+    }
+
+    // ==========================================
+    // 9. ANA OYUN DÖNGÜSÜ (ANIMATE)
+    // ==========================================
+    function animate() {
+        requestAnimationFrame(animate);
+        const delta = Math.min(clock.getDelta(), 0.1);
+
+        // Güvenlik kontrolü: playerShip henüz yüklenmediyse döngüyü atla
+        if (!playerShip) {
+            renderer.render(scene, camera);
+            return;
+        }
+
+        // Turbo Enerjisi Yönetimi
+        if ((gameState === 'EXPLORE' || gameState === 'MISSION') && keys.Shift && boostEnergy > 5) {
+            isBoosting = true;
+            boostEnergy = Math.max(0, boostEnergy - 40 * delta);
+        } else {
+            isBoosting = false;
+            boostEnergy = Math.min(100, boostEnergy + 22 * delta);
+        }
+        document.getElementById('boost-bar').style.width = `${boostEnergy}%`;
+
+        // Motor Alevi ve Kalkan Efekti
+        if (engineGlow) {
+            engineGlow.scale.z = (isBoosting ? 2.4 : 0.9) + Math.random() * 0.4;
+            engineGlow.material.color.setHex(isBoosting ? 0xa855f7 : 0x00f3ff);
+        }
+        if (shieldMesh && shieldMesh.material.opacity > 0) {
+            shieldMesh.material.opacity = Math.max(0, shieldMesh.material.opacity - delta * 1.5);
+            shieldMesh.rotation.y += delta * 2;
+        }
+
+        // Güneş Sistemi Yörünge Hareketleri (Arka planda sürekli döner)
+        if (sunMesh) sunMesh.rotation.y += delta * 0.2;
+        planetObjects.forEach(pObj => {
+            pObj.data.angle += pObj.data.orbitSpeed * delta * 0.35;
+            pObj.group.position.x = Math.cos(pObj.data.angle) * pObj.data.distance;
+            pObj.group.position.z = Math.sin(pObj.data.angle) * pObj.data.distance;
+            pObj.mesh.rotation.y += delta * 0.6;
+        });
+
+        // ======================================
+        // MOD A: GÜNEŞ SİSTEMİ KEŞİF MODU
+        // ======================================
+        if (gameState === 'EXPLORE' || gameState === 'START') {
+            if (gameState === 'EXPLORE') {
+                // Dönüş (Klavye A/D veya Sanal Joystick Yatay Ekseni)
+                const turnSpeed = 2.1 * delta;
+                if (keys.ArrowLeft || keys.a || keys.A) shipYaw += turnSpeed;
+                if (keys.ArrowRight || keys.d || keys.D) shipYaw -= turnSpeed;
+                if (Math.abs(joystickState.x) > 0.1) {
+                    shipYaw -= joystickState.x * turnSpeed * 1.15;
+                }
+
+                // İleri / Geri İtki (Klavye W/S veya Sanal Joystick Dikey Ekseni)
+                const forwardDir = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), shipYaw);
+                const engineMultiplier = 1 + (playerUpgrades.engineLevel - 1) * 0.2;
+                const thrustPower = (isBoosting ? 95 : 45) * engineMultiplier;
+
+                if (keys.ArrowUp || keys.w || keys.W) {
+                    shipVelocity.addScaledVector(forwardDir, thrustPower * delta);
+                    camYawOffset *= 0.92;
+                }
+                if (keys.ArrowDown || keys.s || keys.S) {
+                    shipVelocity.addScaledVector(forwardDir, -thrustPower * 0.6 * delta);
+                }
+                if (Math.abs(joystickState.y) > 0.1) {
+                    // Joystick yukarı itildiğinde joystickState.y negatiftir -> ileri uçuş
+                    const joyThrust = -joystickState.y * thrustPower;
+                    shipVelocity.addScaledVector(forwardDir, joyThrust * delta);
+                    if (joystickState.y < -0.15) camYawOffset *= 0.92;
+                }
+
+                // Yükselme / Alçalma (Q / E veya Ekran Butonları)
+                if (keys.e || keys.E) shipVelocity.y += 28 * delta;
+                if (keys.q || keys.Q) shipVelocity.y -= 28 * delta;
+
+                // Uzay sürtünmesi (yumuşak süzülme)
+                shipVelocity.multiplyScalar(0.95);
+                playerShip.position.addScaledVector(shipVelocity, delta);
+
+                // Güneşe çok yaklaşırsa nazikçe geri it (yanmaması için)
+                if (playerShip.position.length() < 22) {
+                    playerShip.position.normalize().multiplyScalar(22);
+                }
+                // Çok uzaklaşırsa sınırla
+                if (playerShip.position.length() > 360) {
+                    playerShip.position.normalize().multiplyScalar(360);
+                }
+
+                // Gemi yatış açısı (Klavye + Joystick uyumlu)
+                playerShip.rotation.set(0, shipYaw, 0);
+                let roll = (keys.ArrowLeft || keys.a || keys.A ? 0.35 : 0) + (keys.ArrowRight || keys.d || keys.D ? -0.35 : 0);
+                if (Math.abs(joystickState.x) > 0.1) roll = -joystickState.x * 0.42;
+                playerShip.rotation.z = roll;
+
+                // Dinamik 3. Şahıs Takip Kamerası
+                const totalYaw = shipYaw + camYawOffset;
+                const camDist = isBoosting ? 13 : 10.5;
+                const camOffset = new THREE.Vector3(
+                    Math.sin(totalYaw) * camDist,
+                    Math.sin(camPitch) * camDist + 1.5,
+                    Math.cos(totalYaw) * camDist
+                );
+                const desiredCamPos = playerShip.position.clone().add(camOffset);
+                camera.position.lerp(desiredCamPos, 10 * delta);
+                camera.lookAt(playerShip.position.clone().add(new THREE.Vector3(0, 1.2, 0)));
+
+                // Keşif modunda atılan lazerleri güncelle
+                for (let i = lasers.length - 1; i >= 0; i--) {
+                    const l = lasers[i];
+                    l.position.addScaledVector(l.userData.velocity, delta);
+                    l.userData.life -= delta;
+                    if (l.userData.life <= 0) {
+                        solarSystemGroup.remove(l);
+                        lasers.splice(i, 1);
+                    }
+                }
+
+                updateSelectedPlanetDistance();
+                updatePlanetLabels();
+                drawRadar();
+            } else {
+                // START ekranında güneş sisteminin etrafında sinematik dönüş
+                const t = Date.now() * 0.0002;
+                camera.position.set(Math.cos(t) * 165, 55, Math.sin(t) * 165);
+                camera.lookAt(0, 0, 0);
+            }
+        }
+
+        // ======================================
+        // MOD B: GEZEGEN GÖREV MODU (AKSİYON)
+        // ======================================
+        if (gameState === 'MISSION') {
+            const speedMult = isBoosting ? 1.8 : 1.0;
+
+            // Yıldızları arkaya kaydır
+            const starPosAttr = starField?.geometry?.attributes?.position;
+            if (starPosAttr) {
+                const positions = starPosAttr.array;
+                for (let i = 2; i < positions.length; i += 3) {
+                    positions[i] += 45 * speedMult * delta;
+                    if (positions[i] > 50) positions[i] = -350;
+                }
+                starPosAttr.needsUpdate = true;
+            }
+
+            if (tripleShotTimer > 0) {
+                tripleShotTimer -= delta;
+                document.getElementById('buff-timer').innerText = `${Math.ceil(tripleShotTimer)}s`;
+                if (tripleShotTimer <= 0) document.getElementById('weapon-buff-ui').classList.add('hidden');
+            }
+
+            // Gemi Kontrolleri (Klavye + Sanal Joystick)
+            const moveSpeed = 20 * delta;
+            if (keys.ArrowLeft || keys.a || keys.A) missionTargetPos.x -= moveSpeed;
+            if (keys.ArrowRight || keys.d || keys.D) missionTargetPos.x += moveSpeed;
+            if (keys.ArrowUp || keys.w || keys.W) missionTargetPos.y += moveSpeed;
+            if (keys.ArrowDown || keys.s || keys.S) missionTargetPos.y -= moveSpeed;
+            if (Math.abs(joystickState.x) > 0.08) missionTargetPos.x += joystickState.x * moveSpeed * 1.25;
+            if (Math.abs(joystickState.y) > 0.08) missionTargetPos.y -= joystickState.y * moveSpeed * 1.25;
+            if (keys[" "]) fireLaser();
+
+            missionTargetPos.x = Math.max(-missionBounds.x, Math.min(missionBounds.x, missionTargetPos.x));
+            missionTargetPos.y = Math.max(-missionBounds.y, Math.min(missionBounds.y, missionTargetPos.y));
+
+            const prevX = playerShip.position.x;
+            playerShip.position.x += (missionTargetPos.x - playerShip.position.x) * 11 * delta;
+            playerShip.position.y += (missionTargetPos.y - playerShip.position.y) * 11 * delta;
+
+            playerShip.rotation.z = -((playerShip.position.x - prevX) / delta) * 0.04;
+            playerShip.rotation.x = (missionTargetPos.y - playerShip.position.y) * 0.08;
+
+            // Ekran Sarsıntısı
+            let shakeX = 0, shakeY = 0;
+            if (screenShake > 0) {
+                shakeX = (Math.random() - 0.5) * screenShake;
+                shakeY = (Math.random() - 0.5) * screenShake;
+                screenShake = Math.max(0, screenShake - delta * 2.5);
+            }
+            camera.position.x += ((playerShip.position.x * 0.35 + shakeX) - camera.position.x) * 6 * delta;
+            camera.position.y += ((playerShip.position.y * 0.35 + 3 + shakeY) - camera.position.y) * 6 * delta;
+
+            // Lazerler
+            for (let i = lasers.length - 1; i >= 0; i--) {
+                const l = lasers[i];
+                l.position.z -= 85 * delta;
+                if (l.position.z < -120) {
+                    missionGroup.remove(l);
+                    lasers.splice(i, 1);
+                }
+            }
+
+            // Düşman Lazerleri
+            for (let i = enemyLasers.length - 1; i >= 0; i--) {
+                const el = enemyLasers[i];
+                el.position.addScaledVector(el.userData.velocity, delta);
+                if (el.position.distanceTo(playerShip.position) < 1.3) {
+                    createExplosion(el.position, 0xff2a55, 12);
+                    missionGroup.remove(el);
+                    enemyLasers.splice(i, 1);
+                    takeDamage(15);
+                    continue;
+                }
+                if (el.position.z > 20 || el.position.z < -125) {
+                    missionGroup.remove(el);
+                    enemyLasers.splice(i, 1);
+                }
+            }
+
+            // Görev Tipine Göre Hedef Üretimi
+            spawnTimer += delta;
+            const mType = activeMissionPlanet ? activeMissionPlanet.mission.type : 'MIXED';
+            if (spawnTimer >= 1.1) {
+                spawnTimer = 0;
+                if (mType === 'ASTEROID') {
+                    spawnMissionAsteroid();
+                } else if (mType === 'ENEMY') {
+                    spawnMissionEnemy();
+                } else {
+                    Math.random() > 0.45 ? spawnMissionEnemy() : spawnMissionAsteroid();
+                }
+            }
+
+            // Düşman Gemileri Güncelle
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                enemy.position.z += enemy.userData.speed * delta;
+                enemy.position.x += enemy.userData.strafeSpeed * delta;
+                if (Math.abs(enemy.position.x) > missionBounds.x) enemy.userData.strafeSpeed *= -1;
+
+                enemy.userData.shootTimer -= delta;
+                if (enemy.userData.shootTimer <= 0 && enemy.position.z > -85 && enemy.position.z < -15) {
+                    fireEnemyLaser(enemy.position);
+                    enemy.userData.shootTimer = 2.0;
+                }
+
+                let destroyed = false;
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    const l = lasers[j];
+                    if (enemy.position.distanceTo(l.position) < 1.8) {
+                        missionGroup.remove(l);
+                        lasers.splice(j, 1);
+                        enemy.userData.hp -= l.userData.damage;
+                        createExplosion(l.position, 0xf43f5e, 8);
+
+                        if (enemy.userData.hp <= 0) {
+                            sound.playExplosion();
+                            screenShake = 0.45;
+                            createExplosion(enemy.position, 0xf43f5e, 30);
+                            if (Math.random() < 0.35) spawnPowerup(enemy.position);
+                            missionGroup.remove(enemy);
+                            enemies.splice(i, 1);
+                            destroyed = true;
+                            registerMissionKill();
+                        }
+                        break;
+                    }
+                }
+                if (destroyed) continue;
+
+                if (enemy.position.distanceTo(playerShip.position) < 2.0) {
+                    createExplosion(enemy.position, 0xf43f5e, 25);
+                    missionGroup.remove(enemy);
+                    enemies.splice(i, 1);
+                    takeDamage(25);
+                    continue;
+                }
+                if (enemy.position.z > 20) {
+                    missionGroup.remove(enemy);
+                    enemies.splice(i, 1);
+                }
+            }
+
+            // Asteroitleri Güncelle
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                const ast = asteroids[i];
+                ast.position.z += ast.userData.speed * delta;
+                ast.rotation.x += ast.userData.rotSpeed.x * delta;
+                ast.rotation.y += ast.userData.rotSpeed.y * delta;
+
+                let destroyed = false;
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    const l = lasers[j];
+                    if (ast.position.distanceTo(l.position) < ast.userData.radius + 0.65) {
+                        missionGroup.remove(l);
+                        lasers.splice(j, 1);
+                        ast.userData.hp -= l.userData.damage;
+                        createExplosion(l.position, 0x00f3ff, 6);
+
+                        if (ast.userData.hp <= 0) {
+                            sound.playExplosion();
+                            screenShake = 0.25;
+                            createExplosion(ast.position, 0xf59e0b, 20);
+                            if (Math.random() < 0.25) spawnPowerup(ast.position);
+                            missionGroup.remove(ast);
+                            asteroids.splice(i, 1);
+                            destroyed = true;
+                            registerMissionKill();
+                        }
+                        break;
+                    }
+                }
+                if (destroyed) continue;
+
+                if (ast.position.distanceTo(playerShip.position) < ast.userData.radius + 1.1) {
+                    createExplosion(ast.position, 0xef4444, 25);
+                    missionGroup.remove(ast);
+                    asteroids.splice(i, 1);
+                    takeDamage(20);
+                    continue;
+                }
+                if (ast.position.z > 20) {
+                    missionGroup.remove(ast);
+                    asteroids.splice(i, 1);
+                }
+            }
+
+            // Güçlendiriciler
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const p = powerups[i];
+                p.position.z += 22 * delta;
+                p.rotation.y += 3 * delta;
+                if (p.position.distanceTo(playerShip.position) < 2.2) {
+                    sound.playPowerup();
+                    if (p.userData.type === 'SHIELD') {
+                        health = Math.min(100, health + 35);
+                        updateHealthUI();
+                        shieldMesh.material.color.setHex(0x10b981);
+                        shieldMesh.material.opacity = 0.6;
+                    } else {
+                        tripleShotTimer = 10.0;
+                        document.getElementById('weapon-buff-ui').classList.remove('hidden');
+                    }
+                    missionGroup.remove(p);
+                    powerups.splice(i, 1);
+                    continue;
+                }
+                if (p.position.z > 20) {
+                    missionGroup.remove(p);
+                    powerups.splice(i, 1);
+                }
+            }
+
+            // Patlama Parçacıkları
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.position.addScaledVector(p.userData.velocity, delta);
+                p.userData.life -= delta * 1.8;
+                p.scale.setScalar(Math.max(0.01, p.userData.life));
+                if (p.userData.life <= 0) {
+                    missionGroup.remove(p);
+                    particles.splice(i, 1);
+                }
+            }
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    window.onload = function () {
+        initThree();
+        setupControls();
+        animate();
+    };
+</script>
+</body>
+</html>
