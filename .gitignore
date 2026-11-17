@@ -1,0 +1,7 @@
+﻿################################################################################
+# Bu .gitignore dosyası Microsoft(R) Visual Studio tarafından otomatik olarak oluşturulmuştur.
+################################################################################
+
+/.vs/games.slnx/FileContentIndex
+/.vs/games.slnx/v18
+/.vs
