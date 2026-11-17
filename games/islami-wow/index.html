@@ -1,0 +1,2320 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>İslami Terimler - Harf Birleştirme Oyunu</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tone.js (Ses efektleri için) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts: Amiri ve Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome İkonlar -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #06281e;
+            background-image: radial-gradient(#0d4a38 1px, transparent 1px);
+            background-size: 24px 24px;
+            color: #f8fafc;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; /* Sürükleme sırasında sayfa kaymasını engeller */
+            overflow: hidden;
+        }
+
+        .islamic-title {
+            font-family: 'Amiri', serif;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        .cell-revealed {
+            animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            background: #ffffff !important;
+            border: 2px solid #10b981 !important;
+            color: #000000 !important;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.25);
+        }
+
+        .cell-empty {
+            background-color: rgba(255, 255, 255, 0.92);
+            border: 2px solid #cbd5e1;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.12);
+        }
+
+        .shake-anim {
+            animation: shake 0.35s ease-in-out;
+        }
+
+        .hammer-target {
+            border: 2px dashed #f59e0b !important;
+            background-color: #fef3c7 !important;
+            cursor: crosshair !important;
+            animation: pulseTarget 1s infinite;
+        }
+
+        @keyframes pulseTarget {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+        }
+
+        .letter-node {
+            transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .letter-node.active {
+            background: #f59e0b !important;
+            color: #000000 !important;
+            transform: scale(1.18);
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.7);
+            border-color: #d97706 !important;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col justify-between items-center p-3 sm:p-4 relative">
+
+    <!-- Ana Sayfa (Giriş Ekranı) -->
+    <div id="homeScreen" class="fixed inset-0 z-40 flex flex-col items-center justify-between p-6 bg-[#06281e] bg-[radial-gradient(#0d4a38_1px,transparent_1px)] [background-size:24px_24px]">
+        <!-- Üst Bakiye Çubuğu -->
+        <div class="w-full max-w-md flex items-center justify-between">
+            <button onclick="toggleSound()" id="homeSoundBtn" class="w-10 h-10 rounded-xl bg-emerald-900/80 border border-emerald-700/60 text-emerald-200 flex items-center justify-center text-sm shadow" title="Sesi Aç/Kapat">
+                <i class="fa-solid fa-volume-high"></i>
+            </button>
+            <div class="flex items-center gap-2">
+                <div class="px-3 py-1.5 rounded-xl bg-emerald-950/90 border border-emerald-500/40 flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-coins text-emerald-400 text-sm"></i>
+                    <span id="homeWowCoinDisplay" class="font-bold text-emerald-300 text-sm">10</span>
+                </div>
+                <div class="px-3 py-1.5 rounded-xl bg-emerald-950/90 border border-amber-500/40 flex items-center gap-1.5 shadow">
+                    <i class="fa-solid fa-gem text-amber-400 text-sm"></i>
+                    <span id="homeScoreDisplay" class="font-bold text-amber-400 text-sm">1000</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orta Logo ve Başlık -->
+        <div class="flex flex-col items-center text-center my-auto">
+            <div class="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 p-1 shadow-[0_0_40px_rgba(245,158,11,0.35)] mb-5">
+                <div class="w-full h-full rounded-full bg-emerald-950 flex items-center justify-center border-2 border-amber-300/60">
+                    <i class="fa-solid fa-mosque text-4xl sm:text-5xl text-amber-400"></i>
+                </div>
+            </div>
+            <h1 class="islamic-title text-4xl sm:text-5xl font-bold text-amber-400 tracking-wide drop-shadow-lg mb-2">
+                İslami WoW
+            </h1>
+            <p class="text-xs sm:text-sm text-emerald-200/80 max-w-xs leading-relaxed">
+                500 bölümlük çapraz bulmaca yolculuğunda harfleri birleştirin, İslami terimleri keşfedin.
+            </p>
+
+            <!-- Mevcut Seviye Kartı -->
+            <div class="mt-4 px-5 py-2 rounded-2xl bg-emerald-900/60 border border-emerald-600/50 flex items-center gap-2.5 shadow-inner">
+                <i class="fa-solid fa-kaaba text-amber-400"></i>
+                <span id="homeCurrentLevelText" class="text-sm font-bold text-white">Bölüm 1 / 500</span>
+            </div>
+
+            <!-- Her Girişte Değişen Günün Ayeti Kartı -->
+            <div class="mt-3 w-full max-w-xs p-3.5 rounded-2xl bg-emerald-950/90 border border-amber-400/50 shadow-lg text-center">
+                <div class="flex items-center justify-center gap-1.5 text-[11px] font-extrabold text-amber-400 mb-1">
+                    <i class="fa-solid fa-book-open"></i>
+                    <span id="dailyAyahRef">Bakara Suresi, 152. Ayet</span>
+                </div>
+                <p id="dailyAyahText" class="text-xs text-emerald-100/95 italic leading-relaxed mb-2.5">
+                    "Öyleyse siz beni (ibadetle) anın ki ben de sizi anayım. Bana şükredin, sakın bana nankörlük etmeyin!"
+                </p>
+                <button id="openAyahQuizBtn" onclick="openDailyAyahQuizModal()" class="w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400 text-amber-300 font-extrabold text-xs transition flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-circle-question"></i>
+                    <span id="ayahQuizBtnLabel">Günün Ayet Sorusunu Bil (+100 💎)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Alt Aksiyon Butonları -->
+        <div class="w-full max-w-xs space-y-2.5">
+            <button onclick="startGameFromHome()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-extrabold text-base sm:text-lg shadow-[0_6px_25px_rgba(245,158,11,0.45)] transition transform active:scale-95 flex items-center justify-center gap-2.5">
+                <i class="fa-solid fa-play"></i>
+                <span id="playBtnText">OYNA (BÖLÜM 1)</span>
+            </button>
+
+            <button onclick="openDailyWheelModal()" class="w-full py-3 rounded-2xl bg-gradient-to-r from-emerald-800 to-teal-900 hover:from-emerald-700 hover:to-teal-800 border border-amber-400/70 text-amber-300 font-extrabold text-xs sm:text-sm shadow-lg transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-dharmachakra text-amber-400 text-base"></i>
+                <span>GÜNLÜK ÖDÜL ÇARKI</span>
+                <span id="homeWheelBadge" class="px-2 py-0.5 rounded-full bg-amber-500 text-emerald-950 text-[10px] font-black">ÜCRETSİZ</span>
+            </button>
+
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="openLevelSelectModal()" class="py-2.5 px-2 rounded-2xl bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-600/70 text-emerald-100 font-bold text-xs shadow-md transition flex flex-col items-center justify-center gap-1">
+                    <i class="fa-solid fa-layer-group text-amber-400 text-sm"></i>
+                    <span>Bölümler</span>
+                </button>
+                <button onclick="openMarketModal()" class="py-2.5 px-2 rounded-2xl bg-emerald-900/90 hover:bg-emerald-800 border border-amber-500/60 text-amber-300 font-bold text-xs shadow-md transition flex flex-col items-center justify-center gap-1">
+                    <i class="fa-solid fa-store text-amber-400 text-sm"></i>
+                    <span>Market</span>
+                </button>
+                <button onclick="openCustomListModal()" class="py-2.5 px-2 rounded-2xl bg-emerald-900/90 hover:bg-emerald-800 border border-emerald-600/70 text-emerald-100 font-bold text-xs shadow-md transition flex flex-col items-center justify-center gap-1">
+                    <i class="fa-solid fa-list-check text-amber-400 text-sm"></i>
+                    <span>Özel Liste</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Üst Bilgi Çubuğu (Oyun İçi) -->
+    <header class="w-full max-w-md flex items-center justify-between bg-emerald-950/85 backdrop-blur-md border border-emerald-700/60 px-3 py-2.5 rounded-2xl shadow-xl z-10">
+        <div class="flex items-center gap-2">
+            <button onclick="goToHomeScreen()" class="w-9 h-9 rounded-xl bg-emerald-900 hover:bg-emerald-800 border border-emerald-700/70 text-amber-400 flex items-center justify-center text-sm shadow" title="Ana Sayfa">
+                <i class="fa-solid fa-house"></i>
+            </button>
+            <div class="flex flex-col">
+                <span class="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">İslami WoW</span>
+                <span id="levelDisplay" class="font-bold text-emerald-100 text-xs sm:text-sm">Bölüm 1 / 500</span>
+            </div>
+        </div>
+
+        <!-- İslami WoW Parası, Elmas ve Market -->
+        <div class="flex items-center gap-1.5">
+            <button onclick="openMarketModal()" class="w-9 h-9 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/70 text-amber-300 flex items-center justify-center text-sm shadow" title="İslami WoW Marketi">
+                <i class="fa-solid fa-store"></i>
+            </button>
+            <div class="bg-emerald-900/90 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-inner" title="İslami WoW Parası">
+                <i class="fa-solid fa-coins text-emerald-400 text-xs"></i>
+                <span id="wowCoinDisplay" class="font-bold text-emerald-300 text-xs sm:text-sm">10</span>
+            </div>
+            <div class="bg-emerald-900/90 border border-amber-500/40 px-2.5 py-1.5 rounded-xl flex items-center gap-1.5 shadow-inner" title="Elmas Bakiyesi">
+                <i class="fa-solid fa-gem text-amber-400 text-xs"></i>
+                <span id="scoreDisplay" class="font-bold text-amber-400 text-xs sm:text-sm">1000</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Orta Alan: Çapraz Bulmaca (Words of Wonders Izgarası) -->
+    <main class="flex-1 w-full max-w-md flex flex-col items-center justify-center my-1 relative">
+        <div id="crosswordGrid" class="grid gap-1.5 p-2 rounded-2xl">
+            <!-- Bulmaca kareleri JS ile buraya yerleştirilecek -->
+        </div>
+
+        <!-- Seçilen Kelime Önizleme Balonu -->
+        <div id="currentWordBadge" class="mt-2 h-9 px-5 rounded-full bg-amber-500 text-black font-extrabold text-lg tracking-widest flex items-center justify-center shadow-lg opacity-0 transition-opacity duration-150">
+            
+        </div>
+    </main>
+
+    <!-- Alt Alan: Harf Çemberi ve Yardımcı Butonlar -->
+    <footer class="w-full max-w-md flex items-center justify-between pb-2 px-1 relative">
+        <!-- Sol Butonlar: Karıştır ve Ekstra Kelimeler (0/10 -> 50 Elmas) -->
+        <div class="flex flex-col gap-2 z-10">
+            <button onclick="shuffleWheel()" class="w-12 h-12 rounded-2xl bg-white hover:bg-slate-100 border-2 border-slate-300 text-black flex items-center justify-center text-lg shadow-lg active:scale-90 transition" title="Harfleri Karıştır">
+                <i class="fa-solid fa-shuffle"></i>
+            </button>
+            <button onclick="showBonusModal()" class="w-12 h-12 rounded-2xl bg-white hover:bg-slate-100 border-2 border-slate-300 text-black flex flex-col items-center justify-center shadow-lg active:scale-90 transition relative" title="Ekstra Kelimeler (10 kelimede +50 Elmas)">
+                <i class="fa-solid fa-book-quran text-base"></i>
+                <span id="bonusCountBadge" class="mt-0.5 bg-amber-500 text-black text-[9px] font-extrabold px-1.5 py-0.5 rounded-full leading-none">0/10</span>
+            </button>
+        </div>
+
+        <!-- Merkez: Sürüklenebilir Harf Çemberi -->
+        <div id="wheelWrapper" class="relative w-56 h-56 sm:w-64 sm:h-64 rounded-full bg-emerald-950/90 border-4 border-emerald-700/70 shadow-[0_0_35px_rgba(0,0,0,0.6)] flex items-center justify-center">
+            <svg id="lineCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></svg>
+            <div id="lettersContainer" class="absolute inset-0 z-20">
+                <!-- Harf düğümleri JS ile yerleştirilecek -->
+            </div>
+        </div>
+
+        <!-- Sağ Butonlar: Çekiç ve İpucu -->
+        <div class="flex flex-col gap-2 z-10">
+            <button id="hammerBtn" onclick="toggleHammerMode()" class="w-12 h-12 rounded-2xl bg-white hover:bg-slate-100 border-2 border-slate-300 text-black flex flex-col items-center justify-center shadow-lg active:scale-90 transition" title="Çekiç: İstediğin 1 kutuyu aç (1 ücretsiz hak, sonra 200 elmas)">
+                <i class="fa-solid fa-hammer text-base text-sky-600"></i>
+                <span id="hammerCostLabel" class="text-[9px] font-extrabold text-sky-700 leading-none mt-0.5">1 Hak</span>
+            </button>
+            <button onclick="revealRandomLetter()" class="w-12 h-12 rounded-2xl bg-white hover:bg-slate-100 border-2 border-slate-300 text-black flex flex-col items-center justify-center shadow-lg active:scale-90 transition" title="İpucu: Rastgele 1 harf aç (2 ücretsiz hak, sonra 100 elmas)">
+                <i class="fa-solid fa-lightbulb text-base text-amber-500"></i>
+                <span id="hintCostLabel" class="text-[9px] font-extrabold text-emerald-700 leading-none mt-0.5">2 Hak</span>
+            </button>
+        </div>
+    </footer>
+
+    <!-- Bölüm Tamamlandı Modalı -->
+    <div id="levelCompleteModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-emerald-950 border-2 border-amber-500/70 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
+            <div class="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 text-amber-400 flex items-center justify-center mx-auto mb-3 text-3xl">
+                <i class="fa-solid fa-star"></i>
+            </div>
+            <h2 class="islamic-title text-3xl font-bold text-amber-400 mb-1">Tebrikler!</h2>
+            <p class="text-xs text-emerald-200 mb-4">Bölümdeki tüm İslami terimleri keşfettiniz.</p>
+
+            <div id="learnedTermsList" class="bg-emerald-900/60 border border-emerald-700/70 rounded-2xl p-3 text-left max-h-48 overflow-y-auto space-y-2.5 mb-5">
+                <!-- Öğrenilen kelimeler ve anlamları -->
+            </div>
+
+            <button id="levelCompleteActionBtn" onclick="handleLevelCompleteContinue()" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-base shadow-lg transition transform active:scale-95">
+                Sonraki Bölüm <i class="fa-solid fa-arrow-right ml-1.5"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Zor Bölüm Sonrası Gizemli Ödül Kutusu Modalı -->
+    <div id="hardChestModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-emerald-950 border-2 border-amber-400 rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center">
+            <div id="chestBoxVisual" onclick="openHardLevelChest()" class="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-500/30 to-amber-700/30 border-2 border-amber-400 flex items-center justify-center mx-auto mb-4 cursor-pointer hover:scale-105 transition shadow-[0_0_30px_rgba(245,158,11,0.35)]">
+                <i id="chestIcon" class="fa-solid fa-box-open text-5xl text-amber-400 animate-bounce"></i>
+            </div>
+            <h2 class="islamic-title text-2xl font-bold text-amber-400 mb-1">Zor Bölüm Hazinesi</h2>
+            <p class="text-xs text-emerald-200/90 mb-3">
+                Kutuyu açın! <b>%25 ihtimalle</b> içinden <b>1 ile 10 arası</b> İslami WoW Parası çıkabilir.
+            </p>
+            <div id="chestStatusText" class="text-sm font-extrabold text-amber-300 mb-4">
+                DOKUN VE AÇ
+            </div>
+            <button id="chestActionBtn" onclick="openHardLevelChest()" class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-extrabold text-sm shadow-lg transition">
+                Sandığı Aç
+            </button>
+        </div>
+    </div>
+
+    <!-- İslami WoW Market Modalı -->
+    <div id="marketModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-emerald-950 border-2 border-amber-500/70 rounded-3xl max-w-sm w-full p-5 shadow-2xl text-center relative">
+            <button onclick="closeMarketModal()" class="absolute top-4 right-4 text-emerald-300 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-400 text-amber-400 flex items-center justify-center mx-auto mb-2 text-xl">
+                <i class="fa-solid fa-store"></i>
+            </div>
+            <h2 class="islamic-title text-2xl font-bold text-amber-400 mb-1">İslami WoW Marketi</h2>
+            <p class="text-[11px] text-emerald-200/80 mb-3">Zor bölüm sandıklarından kazandığınız İslami WoW Parası ile ürün alın.</p>
+
+            <div class="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-900 border border-emerald-500/50 text-xs font-bold text-emerald-300 mb-4">
+                <i class="fa-solid fa-coins text-emerald-400"></i>
+                <span>Bakiyeniz: <b id="marketCoinDisplay" class="text-white">10</b> İslami WoW Parası</span>
+            </div>
+
+            <div class="space-y-2.5 text-left mb-4">
+                <div class="p-3 rounded-2xl bg-emerald-900/70 border border-emerald-700 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400">
+                            <i class="fa-solid fa-gem text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-white text-xs sm:text-sm">+250 Elmas Kesesi</div>
+                            <div class="text-[10px] text-emerald-300">İpucu ve çekiç için elmas</div>
+                        </div>
+                    </div>
+                    <button onclick="buyMarketItem('gem250', 5)" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold text-xs flex items-center gap-1 shadow">
+                        <span>5</span>
+                        <i class="fa-solid fa-coins"></i>
+                    </button>
+                </div>
+
+                <div class="p-3 rounded-2xl bg-emerald-900/70 border border-emerald-700 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400">
+                            <i class="fa-solid fa-lightbulb text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-white text-xs sm:text-sm">+3 Ücretsiz İpucu</div>
+                            <div class="text-[10px] text-emerald-300">Rastgele 3 harfi ücretsiz açar</div>
+                        </div>
+                    </div>
+                    <button onclick="buyMarketItem('hint3', 8)" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold text-xs flex items-center gap-1 shadow">
+                        <span>8</span>
+                        <i class="fa-solid fa-coins"></i>
+                    </button>
+                </div>
+
+                <div class="p-3 rounded-2xl bg-emerald-900/70 border border-emerald-700 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-sky-500/20 border border-sky-400/50 flex items-center justify-center text-sky-400">
+                            <i class="fa-solid fa-hammer text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-white text-xs sm:text-sm">+2 Ücretsiz Çekiç</div>
+                            <div class="text-[10px] text-emerald-300">İstediğin 2 kutuyu ücretsiz aç</div>
+                        </div>
+                    </div>
+                    <button onclick="buyMarketItem('hammer2', 10)" class="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-emerald-950 font-extrabold text-xs flex items-center gap-1 shadow">
+                        <span>10</span>
+                        <i class="fa-solid fa-coins"></i>
+                    </button>
+                </div>
+
+                <div class="p-3 rounded-2xl bg-gradient-to-r from-emerald-900 to-teal-900 border border-amber-400/60 flex items-center justify-between">
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/30 border border-amber-300 flex items-center justify-center text-amber-300">
+                            <i class="fa-solid fa-crown text-lg"></i>
+                        </div>
+                        <div>
+                            <div class="font-bold text-amber-300 text-xs sm:text-sm">Bereket Paketi</div>
+                            <div class="text-[10px] text-emerald-200">+750 Elmas, +2 İpucu, +2 Çekiç</div>
+                        </div>
+                    </div>
+                    <button onclick="buyMarketItem('bundle', 20)" class="px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-emerald-950 font-extrabold text-xs flex items-center gap-1 shadow">
+                        <span>20</span>
+                        <i class="fa-solid fa-coins"></i>
+                    </button>
+                </div>
+            </div>
+
+            <button onclick="closeMarketModal()" class="w-full py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition">
+                Kapat
+            </button>
+        </div>
+    </div>
+
+    <!-- Ekstra Kelimeler Modalı -->
+    <div id="bonusModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-emerald-950 border border-emerald-600 rounded-3xl max-w-xs w-full p-5 shadow-2xl text-center">
+            <h3 class="islamic-title text-2xl font-bold text-amber-400 mb-1">Ekstra Kelimeler</h3>
+            <p class="text-xs text-emerald-200 mb-3">Bulmacada olmayan <b>10 ekstra kelime</b> biriktirin, <b>+50 Elmas</b> kazanın!</p>
+
+            <!-- 0/10 İlerleme Çubuğu -->
+            <div class="bg-emerald-900/90 border border-emerald-700 rounded-2xl p-3 mb-3">
+                <div class="flex justify-between items-center text-xs font-bold mb-1.5">
+                    <span class="text-emerald-200">Biriken Kelime</span>
+                    <span id="bonusProgressText" class="text-amber-400">0 / 10</span>
+                </div>
+                <div class="w-full h-3 bg-emerald-950 rounded-full overflow-hidden border border-emerald-700">
+                    <div id="bonusProgressBar" class="h-full bg-gradient-to-r from-amber-500 to-amber-300 transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <div id="bonusWordsList" class="flex flex-wrap gap-2 justify-center min-h-[50px] max-h-36 overflow-y-auto bg-emerald-900/50 rounded-xl p-3 mb-4">
+                <span class="text-xs text-emerald-500 italic">Henüz ekstra kelime bulunmadı.</span>
+            </div>
+            <button onclick="closeBonusModal()" class="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-sm">
+                Kapat
+            </button>
+        </div>
+    </div>
+
+    <!-- Kendi Kelime ve Açıklama Listeni Oluştur Modalı -->
+    <div id="customListModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-emerald-950 border-2 border-amber-500/60 rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl text-left">
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="islamic-title text-2xl font-bold text-amber-400">
+                    <i class="fa-solid fa-pen-to-square mr-1.5"></i> Kendi Listeni Oluştur
+                </h3>
+                <button onclick="closeCustomListModal()" class="text-emerald-300 hover:text-white text-lg">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p class="text-xs text-emerald-200/90 mb-3 leading-relaxed">
+                Her satıra <b>KELİME : Açıklama</b> şeklinde yazın. En uzun kelimenin harflerinden oluşan kelimeler otomatik olarak çapraz bulmacaya yerleştirilir!
+            </p>
+
+            <label class="block text-[11px] font-bold text-amber-300 mb-1">Bölüm Başlığı</label>
+            <input id="customLevelTitle" type="text" value="Özel İslami Liste" class="w-full px-3 py-2 rounded-xl bg-emerald-900/80 border border-emerald-600 text-white text-xs sm:text-sm mb-3 focus:outline-none focus:border-amber-400">
+
+            <label class="block text-[11px] font-bold text-amber-300 mb-1">Kelimeler ve Açıklamalar (Her satıra 1 kelime)</label>
+            <textarea id="customWordsInput" rows="6" class="w-full p-3 rounded-xl bg-emerald-900/80 border border-emerald-600 text-white text-xs sm:text-sm font-mono focus:outline-none focus:border-amber-400 mb-4" placeholder="RAHMET : Allah'ın sonsuz merhameti&#10;HARE : Parıltı, ışık halkası&#10;MERT : Özü sözü doğru kimse&#10;AHRET : Ölümden sonraki ebedi alem"></textarea>
+
+            <div class="flex gap-2">
+                <button onclick="closeCustomListModal()" class="flex-1 py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm">
+                    İptal
+                </button>
+                <button onclick="generateCustomLevel()" class="flex-[2] py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-extrabold text-xs sm:text-sm shadow-lg">
+                    Bulmacayı Oluştur ve Oyna
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bölüm Seçme Modalı (1 - 500) -->
+    <div id="levelSelectModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-emerald-950 border-2 border-amber-500/60 rounded-3xl max-w-sm w-full p-5 shadow-2xl text-center">
+            <div class="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-400 text-amber-400 flex items-center justify-center mx-auto mb-2 text-xl">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <h2 class="islamic-title text-2xl font-bold text-amber-400 mb-1">Bölüm Haritası (1 - 500)</h2>
+            <p class="text-xs text-emerald-200/80 mb-3">1'den 500'e kadar tüm bölümleri aşağı kaydırarak inceleyebilirsiniz. (Her 10. bölüm Zor Bölümdür)</p>
+            
+            <div id="levelsPreviewGrid" class="grid grid-cols-5 gap-2 max-h-72 overflow-y-auto p-2.5 bg-emerald-900/40 rounded-2xl border border-emerald-800 mb-4">
+                <!-- 1 - 500 arası tüm bölümler listelenecek -->
+            </div>
+
+            <button onclick="closeLevelSelectModal()" class="w-full py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition">
+                Kapat
+            </button>
+        </div>
+    </div>
+
+    <!-- Günlük Ödül Çarkı Modalı -->
+    <div id="dailyWheelModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-emerald-950 border-2 border-amber-500/70 rounded-3xl max-w-sm w-full p-5 shadow-2xl text-center relative">
+            <button onclick="closeDailyWheelModal()" class="absolute top-4 right-4 text-emerald-300 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <h2 class="islamic-title text-2xl font-bold text-amber-400 mb-0.5">
+                <i class="fa-solid fa-dharmachakra mr-1.5"></i> Günlük Ödül Çarkı
+            </h2>
+            <p id="wheelSpinsLeftText" class="text-xs text-emerald-200/90 mb-3">
+                Bugünkü Kalan Hak: <b>6 / 6</b>
+            </p>
+
+            <!-- İslami WoW Parası Göstergesi -->
+            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-900/90 border border-emerald-500/40 text-xs font-bold text-emerald-300 mb-4">
+                <i class="fa-solid fa-coins text-emerald-400"></i>
+                <span>Bakiyeniz: <b id="wheelModalCoinDisplay" class="text-white">10</b> İslami WoW Parası</span>
+            </div>
+
+            <!-- Çark Görseli ve Üst İbre -->
+            <div class="relative w-64 h-64 mx-auto mb-4 flex items-center justify-center">
+                <!-- Üst Sabit Gösterge İbresi -->
+                <div class="absolute -top-2.5 left-1/2 -translate-x-1/2 z-30 drop-shadow-lg">
+                    <div class="w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[22px] border-t-amber-400"></div>
+                </div>
+
+                <!-- Dönen Çark SVG -->
+                <div id="prizeWheelSpinner" class="w-full h-full rounded-full border-4 border-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.4)] overflow-hidden transition-transform duration-[4000ms] ease-[cubic-bezier(0.15,0.85,0.2,1)]">
+                    <svg viewBox="0 0 200 200" class="w-full h-full">
+                        <!-- 8 Dilim (Her biri 45 derece) -->
+                        <g transform="translate(100,100)">
+                            <path d="M0,0 L0,-100 A100,100 0 0,1 70.7,-70.7 Z" fill="#065f46"/>
+                            <path d="M0,0 L70.7,-70.7 A100,100 0 0,1 100,0 Z" fill="#b45309"/>
+                            <path d="M0,0 L100,0 A100,100 0 0,1 70.7,70.7 Z" fill="#047857"/>
+                            <path d="M0,0 L70.7,70.7 A100,100 0 0,1 0,100 Z" fill="#0369a1"/>
+                            <path d="M0,0 L0,100 A100,100 0 0,1 -70.7,70.7 Z" fill="#065f46"/>
+                            <path d="M0,0 L-70.7,70.7 A100,100 0 0,1 -100,0 Z" fill="#d97706"/>
+                            <path d="M0,0 L-100,0 A100,100 0 0,1 -70.7,-70.7 Z" fill="#047857"/>
+                            <path d="M0,0 L-70.7,-70.7 A100,100 0 0,1 0,-100 Z" fill="#7c3aed"/>
+
+                            <!-- Dilim Etiketleri -->
+                            <text transform="rotate(22.5) translate(0,-64)" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">+100 💎</text>
+                            <text transform="rotate(67.5) translate(0,-64)" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">+2 İpucu</text>
+                            <text transform="rotate(112.5) translate(0,-64)" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">+250 💎</text>
+                            <text transform="rotate(157.5) translate(0,-64)" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">+1 Çekiç</text>
+                            <text transform="rotate(202.5) translate(0,-64)" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">+50 💎</text>
+                            <text transform="rotate(247.5) translate(0,-64)" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">+3 İpucu</text>
+                            <text transform="rotate(292.5) translate(0,-64)" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">+500 💎</text>
+                            <text transform="rotate(337.5) translate(0,-64)" text-anchor="middle" fill="#fff" font-size="10" font-weight="800">+2 Çekiç</text>
+                        </g>
+                    </svg>
+                </div>
+
+                <!-- Merkez Göbek -->
+                <div class="absolute w-12 h-12 rounded-full bg-amber-400 border-4 border-emerald-950 flex items-center justify-center shadow-lg z-20">
+                    <i class="fa-solid fa-star text-emerald-950 text-base"></i>
+                </div>
+            </div>
+
+            <!-- Çevir Butonu -->
+            <button id="spinWheelBtn" onclick="spinDailyWheel()" class="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-emerald-950 font-extrabold text-sm sm:text-base shadow-lg transition transform active:scale-95 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-rotate"></i>
+                <span id="spinBtnLabel">ÇEVİR (ÜCRETSİZ)</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Günlük Ayet Sorusu Modalı (+100 Mücevher) -->
+    <div id="dailyAyahQuizModal" class="fixed inset-0 bg-black/85 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-emerald-950 border-2 border-amber-400 rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl text-center relative">
+            <button onclick="closeDailyAyahQuizModal()" class="absolute top-4 right-4 text-emerald-300 hover:text-white text-lg">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="w-12 h-12 rounded-full bg-amber-500/20 border border-amber-400 text-amber-400 flex items-center justify-center mx-auto mb-2 text-xl">
+                <i class="fa-solid fa-book-quran"></i>
+            </div>
+            <h2 class="islamic-title text-2xl font-bold text-amber-400 mb-1">Günün Ayet Sorusu</h2>
+            <p class="text-[11px] text-emerald-200/80 mb-3">Ayetle ilgili soruyu doğru cevaplayın, <b>+100 Mücevher</b> kazanın!</p>
+
+            <!-- Ayet Meali Kutusu -->
+            <div class="p-3 rounded-2xl bg-emerald-900/60 border border-emerald-700/80 mb-3">
+                <div id="quizAyahRef" class="text-[11px] font-extrabold text-amber-300 mb-1">Sure / Ayet</div>
+                <p id="quizAyahText" class="text-xs text-white italic leading-relaxed">Ayet metni...</p>
+            </div>
+
+            <!-- Soru ve Şıklar -->
+            <div id="quizQuestionText" class="font-bold text-sm text-amber-200 mb-3 text-left">
+                Soru metni...
+            </div>
+            <div id="quizOptionsContainer" class="space-y-2 text-left mb-4">
+                <!-- Seçenekler JS ile oluşturulacak -->
+            </div>
+
+            <button onclick="closeDailyAyahQuizModal()" class="w-full py-2.5 rounded-xl bg-emerald-800 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition">
+                Kapat
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Yedek Bölüm Havuzu (Kolaydan zora sıralı, tüm kelimeler en az 3 harfli ve doğrulanmış)
+        const FALLBACK_LEVELS = [
+            {
+                title: "Bölüm 1 - İman Esasları",
+                letters: ['İ', 'M', 'A', 'N'],
+                rows: 5,
+                cols: 5,
+                words: [
+                    { word: "İMAN", r: 1, c: 0, dir: 'H', meaning: "Allah'ın varlığına, birliğine ve Hz. Muhammed'in (s.a.v.) getirdiği esaslara gönülden inanmak." },
+                    { word: "MANİ", r: 1, c: 1, dir: 'V', meaning: "Engel, bir şeyin gerçekleşmesine karşı duran sebep." },
+                    { word: "AMİN", r: 1, c: 2, dir: 'V', meaning: "Duaların sonunda 'Kabul eyle Allah'ım' anlamında söylenen söz." }
+                ],
+                bonus: ["ANİ", "NAM"]
+            },
+            {
+                title: "Bölüm 2 - Zekat ve Arınma",
+                letters: ['Z', 'E', 'K', 'A', 'T'],
+                rows: 5,
+                cols: 5,
+                words: [
+                    { word: "ZEKAT", r: 1, c: 0, dir: 'H', meaning: "Dinen zengin sayılan Müslümanların yılda bir mallarının belirli bir kısmını ihtiyaç sahiplerine vermesi." },
+                    { word: "ZAT", r: 1, c: 0, dir: 'V', meaning: "Kişi, kimse, öz." },
+                    { word: "KAT", r: 1, c: 2, dir: 'V', meaning: "Derece, mertebe, huzur." }
+                ],
+                bonus: ["TEZ", "KAZ", "TAZE"]
+            },
+            {
+                title: "Bölüm 3 - İhlas ve Samimiyet",
+                letters: ['İ', 'H', 'L', 'A', 'S'],
+                rows: 5,
+                cols: 5,
+                words: [
+                    { word: "İHLAS", r: 0, c: 0, dir: 'H', meaning: "İbadetleri gösterişten uzak, sadece Allah rızası için yapma samimiyeti." },
+                    { word: "SALİH", r: 0, c: 4, dir: 'V', meaning: "İyi, hayırlı, dinin emirlerine uygun amel işleyen kimse." },
+                    { word: "İLAH", r: 3, c: 1, dir: 'H', meaning: "Kendisine ibadet edilen, tapınılan yegane varlık (Allah)." }
+                ],
+                bonus: ["HAL", "ASİL", "SAHİL"]
+            },
+            {
+                title: "Bölüm 4 - Takva ve Sorumluluk",
+                letters: ['T', 'A', 'K', 'V', 'A'],
+                rows: 5,
+                cols: 5,
+                words: [
+                    { word: "TAKVA", r: 1, c: 0, dir: 'H', meaning: "Allah'a karşı gelmekten sakınma, emirlerine uyup yasaklarından kaçınma bilinci." },
+                    { word: "ATA", r: 1, c: 1, dir: 'V', meaning: "Baba, dede, soy." },
+                    { word: "KAT", r: 1, c: 2, dir: 'V', meaning: "Derece, mertebe, huzur." }
+                ],
+                bonus: ["TAVA", "VAKA"]
+            },
+            {
+                title: "Bölüm 5 - Sadaka ve Yardımlaşma",
+                letters: ['S', 'A', 'D', 'A', 'K', 'A'],
+                rows: 6,
+                cols: 6,
+                words: [
+                    { word: "SADAKA", r: 1, c: 0, dir: 'H', meaning: "Allah rızası için ihtiyaç sahiplerine yapılan her türlü maddi ve manevi iyilik." },
+                    { word: "AKSA", r: 1, c: 5, dir: 'V', meaning: "En uzak; Kudüs'teki ilk kıblemiz Mescid-i Aksa." },
+                    { word: "KASA", r: 4, c: 2, dir: 'H', meaning: "Zekat ve sadaka mallarının korunduğu yer." }
+                ],
+                bonus: ["SADAK", "ADA"]
+            }
+        ];
+
+        // Bölümler JSON dosyasından buraya yüklenecek
+        let LEVELS = [];
+        const TOTAL_LEVELS = 500;
+
+        // Zengin İslami Terimler Bölüm Havuzu (500 bölüm boyunca sırayla otomatik bulmacaya dönüştürülür)
+        const ISLAMIC_NORMAL_POOL = [
+            {
+                topic: "Namaz ve İbadet",
+                words: [
+                    { word: "NAMAZ", meaning: "Günde beş vakit kılınan, dinin direği olan farz ibadet." },
+                    { word: "ZAMAN", meaning: "Vakit; namazların farz kılındığı belirli vakitler." },
+                    { word: "AZAM", meaning: "En büyük, en yüce (İsm-i Azam)." },
+                    { word: "ZAM", meaning: "Kur'an'dan Fatiha'nın üzerine eklenen sure (Zamm-ı sure)." }
+                ]
+            },
+            {
+                topic: "Kabe ve Hac",
+                words: [
+                    { word: "KABE", meaning: "Mekke'de bulunan, Müslümanların kıblesi olan Beytullah." },
+                    { word: "BEKA", meaning: "Sonsuzluk, ebedi olma (Allah'ın sıfatlarından biri)." },
+                    { word: "EBA", meaning: "Baba, ata anlamında Arapça kelime (Ebu Bekir vb.)." }
+                ]
+            },
+            {
+                topic: "Kur'an ve Vahiy",
+                words: [
+                    { word: "KURAN", meaning: "Hz. Muhammed'e (s.a.v.) vahiy yoluyla indirilen son ilahi kitap." },
+                    { word: "NURA", meaning: "İlahi aydınlığa, nura yönelik." },
+                    { word: "KUR", meaning: "Okuma, toplama; Kur'an kelimesinin kökü." },
+                    { word: "NAR", meaning: "Ateş, cehennem ateşi." }
+                ]
+            },
+            {
+                topic: "Sabır ve Metanet",
+                words: [
+                    { word: "SABIR", meaning: "Zorluklar karşısında metanet gösterip Allah'a sığınma." },
+                    { word: "BASİR", meaning: "Her şeyi hakkıyla gören (Allah'ın El-Basîr ismi)." },
+                    { word: "ASIR", meaning: "Yüzyıl, çağ; Kur'an'da yer alan Asr suresi." },
+                    { word: "SIR", meaning: "Gizli hakikat, kalpte saklanan manevi bilgi." }
+                ]
+            },
+            {
+                topic: "Şükür ve Nimet",
+                words: [
+                    { word: "ŞÜKÜR", meaning: "Allah'ın verdiği nimetlere karşı gönülden ve dilden teşekkür etme." },
+                    { word: "KÜRŞ", meaning: "İlahi taht, hükümranlık makamı." },
+                    { word: "ŞÜK", meaning: "Şüpheyi giderip yakine erme." }
+                ]
+            },
+            {
+                topic: "Secde ve Yakınlık",
+                words: [
+                    { word: "SECDE", meaning: "Kulun alnını yere koyarak Allah'a en yakın olduğu ibadet hali." },
+                    { word: "CED", meaning: "Ata, dede, soy." },
+                    { word: "ECE", meaning: "Büyük, ulu kimse." }
+                ]
+            },
+            {
+                topic: "Rahmet ve Merhamet",
+                words: [
+                    { word: "RAHMET", meaning: "Allah'ın bütün yaratılmışlara olan sonsuz şefkat ve merhameti." },
+                    { word: "MAHRUM", meaning: "Nasipsiz kalmış." },
+                    { word: "EHRAM", meaning: "Büyük, yüce yapı." },
+                    { word: "HARE", meaning: "Parıltı, ışık halkası." },
+                    { word: "TEM", meaning: "Tamamlanmış, eksiksiz." }
+                ]
+            },
+            {
+                topic: "Bereket ve Bolluk",
+                words: [
+                    { word: "BEREKET", meaning: "Allah'ın ihsan ettiği maddi ve manevi bolluk, hayır." },
+                    { word: "TEKBİR", meaning: "Allahu Ekber diyerek Allah'ın yüceliğini anma." },
+                    { word: "TEREK", meaning: "Miras olarak bırakılan mal (Terike)." },
+                    { word: "BERK", meaning: "Şimşek, parıltı; sağlam." },
+                    { word: "KERE", meaning: "Defa, kez (Zikir sayısı)." }
+                ]
+            },
+            {
+                topic: "Hicret ve Kardeşlik",
+                words: [
+                    { word: "HİCRET", meaning: "Hz. Peygamber ve sahabelerin Mekke'den Medine'ye göçü." },
+                    { word: "TERCİH", meaning: "İki şeyden hayırlı olanı seçme." },
+                    { word: "İCRET", meaning: "Karşılık, ecir, sevap." },
+                    { word: "ETİ", meaning: "Kurban veya helal kesim eti." }
+                ]
+            },
+            {
+                topic: "Hikmet ve İlim",
+                words: [
+                    { word: "HİKMET", meaning: "Varlıkların yaratılış gayesini kavrama, derin ilim ve bilgelik." },
+                    { word: "HİMMET", meaning: "Manevi yardım, gayret ve yüksek irade." },
+                    { word: "TEKİM", meaning: "Tek ve bir olma hali." },
+                    { word: "KİM", meaning: "Soru zamiri; kendini bilme sorusu." }
+                ]
+            }
+        ];
+
+        // Zor Bölümler Havuzu (Her 10 bölümde bir devreye girer - tüm kelimeler en az 3 harfli)
+        const HARD_LEVEL_POOL = [
+            {
+                topic: "Mağfiret ve İrfan",
+                words: [
+                    { word: "MAĞFİRET", meaning: "Allah'ın kullarının günahlarını örtmesi, bağışlaması ve affetmesi." },
+                    { word: "GİRAFT", meaning: "Birbiri içine geçmiş, karmaşık yapı." },
+                    { word: "ARİF", meaning: "İrfan sahibi, Allah'ı kalp gözüyle tanıyan bilge kimse." },
+                    { word: "FERİ", meaning: "İkincil, ayrıntıya dair olan (Fıkıhta asli olmayan hüküm)." },
+                    { word: "GAR", meaning: "Mağara (Hz. Peygamber'in hicrette sığındığı Sevr mağarası)." },
+                    { word: "GAM", meaning: "Keder, tasa, üzüntü." }
+                ]
+            },
+            {
+                topic: "Şehadet ve İnanç",
+                words: [
+                    { word: "ŞEHADET", meaning: "Allah'tan başka ilah olmadığına ve Hz. Muhammed'in O'nun elçisi olduğuna tanıklık etmek." },
+                    { word: "ŞAHADET", meaning: "Tanıklık etme, şahitlik." },
+                    { word: "DEHŞET", meaning: "Büyük korku ve hayret hali." },
+                    { word: "ŞEHİT", meaning: "Allah yolunda canını feda eden Müslüman." },
+                    { word: "ŞAH", meaning: "Hükümdar, padişah." },
+                    { word: "EDA", meaning: "İbadeti vaktinde ve şartlarına uygun olarak yerine getirmek." },
+                    { word: "AHİT", meaning: "Söz verme, yemin, antlaşma." }
+                ]
+            },
+            {
+                topic: "Tevekkül ve Teslimiyet",
+                words: [
+                    { word: "TEVEKKÜL", meaning: "Gerekli tüm tedbirleri aldıktan sonra sonucu Allah'a bırakıp O'na güvenmek." },
+                    { word: "VEKİL", meaning: "Allah'ın isimlerinden biri (El-Vekil); işleri kendisine bırakılan." },
+                    { word: "KÜLT", meaning: "İnanç ve ibadet sistemi." },
+                    { word: "TEK", meaning: "Eşi ve benzeri olmayan (Vahid)." },
+                    { word: "ÜLKE", meaning: "Diyâr, belde, vatan." }
+                ]
+            },
+            {
+                topic: "İstikamet ve Doğruluk",
+                words: [
+                    { word: "İSTİKAMET", meaning: "İnançta, sözde ve davranışta dosdoğru olmak; sırat-ı müstakim üzere yürümek." },
+                    { word: "MİSAK", meaning: "Sağlam söz, antlaşma (Kalu Bela sözleşmesi)." },
+                    { word: "TAKİM", meaning: "Bölük, grup, topluluk." },
+                    { word: "İSAM", meaning: "Tutunacak sağlam kulp, koruma." },
+                    { word: "SİMA", meaning: "Yüz, çehre, alamet." }
+                ]
+            }
+        ];
+
+        // Oyun Durumu
+        let currentLevelIdx = 0;
+        let maxUnlockedLevelIdx = 0;
+        let score = 1000;
+        let wowCoins = 10;
+        let freeHints = 2;
+        let freeHammers = 1;
+        let wheelLetters = [];
+        let foundWords = new Set();
+        let bonusWordsFound = new Set();
+        let bonusProgressCount = 0;
+        const BONUS_TARGET_COUNT = 10;
+        const BONUS_REWARD_GEMS = 50;
+        let gridCellsMap = {};
+        let selectedNodes = [];
+        let isDragging = false;
+        let pointerPos = { x: 0, y: 0 };
+        let hammerMode = false;
+        let soundEnabled = true;
+        let synth = null;
+
+        // Günlük Çark Durumu (Toplam 6 çevirme: 0 [Ücretsiz], 2, 4, 6, 8, 10 İslami WoW Parası)
+        const MAX_DAILY_SPINS = 6;
+        const SPIN_COSTS = [0, 2, 4, 6, 8, 10];
+        let dailySpinsUsed = 0;
+        let isWheelSpinning = false;
+        let currentWheelRotation = 0;
+        const WHEEL_PRIZES = [
+            { label: "+100 Elmas", type: "gem", amount: 100 },
+            { label: "+2 Ücretsiz İpucu", type: "hint", amount: 2 },
+            { label: "+250 Elmas", type: "gem", amount: 250 },
+            { label: "+1 Ücretsiz Çekiç", type: "hammer", amount: 1 },
+            { label: "+50 Elmas", type: "gem", amount: 50 },
+            { label: "+3 Ücretsiz İpucu", type: "hint", amount: 3 },
+            { label: "+500 Elmas", type: "gem", amount: 500 },
+            { label: "+2 Ücretsiz Çekiç", type: "hammer", amount: 2 }
+        ];
+
+        // Her Girişte Değişen Ayetler ve Günlük Ayet Soruları Havuzu
+        const AYAH_QUIZ_POOL = [
+            {
+                ref: "Bakara Suresi, 152. Ayet",
+                ayah: "Öyleyse siz beni (ibadetle) anın ki ben de sizi anayım. Bana şükredin, sakın bana nankörlük etmeyin!",
+                question: "Bu ayet-i kerimede Allah kullarına hangi iki davranışı emretmektedir?",
+                options: [
+                    "Allah'ı anmak (zikretmek) ve şükretmek",
+                    "Sadece mal biriktirmek ve beklemek",
+                    "Yalnızca yolculuğa çıkmak"
+                ],
+                correctIndex: 0
+            },
+            {
+                ref: "İnşirah Suresi, 5-6. Ayetler",
+                ayah: "Elbette zorluğun yanında bir kolaylık vardır. Gerçekten, zorlukla beraber bir kolaylık daha vardır.",
+                question: "İnşirah Suresi'nin bu ayetlerinde müminlere verilen temel müjde nedir?",
+                options: [
+                    "Her zorlukla birlikte mutlaka bir kolaylığın da var olduğu",
+                    "Dünyada hiç zorluk yaşanmayacağı",
+                    "Zorlukların sadece zenginlere geleceği"
+                ],
+                correctIndex: 0
+            },
+            {
+                ref: "Bakara Suresi, 153. Ayet",
+                ayah: "Ey iman edenler! Sabır ve namaz ile Allah'tan yardım isteyin. Şüphesiz Allah sabredenlerle beraberdir.",
+                question: "Ayete göre müminler Allah'tan hangi iki ibadetle yardım istemelidir?",
+                options: [
+                    "Sabır ve namaz ile",
+                    "Uyku ve istirahat ile",
+                    "Sadece ticaret ile"
+                ],
+                correctIndex: 0
+            },
+            {
+                ref: "Zümer Suresi, 53. Ayet",
+                ayah: "De ki: Ey kendi nefisleri aleyhine haddi aşan kullarım! Allah'ın rahmetinden ümit kesmeyin. Çünkü Allah bütün günahları bağışlar.",
+                question: "Bu ayette kullara hangi konuda ümit kesmemeleri öğütlenmektedir?",
+                options: [
+                    "Allah'ın sonsuz rahmetinden ve bağışlamasından",
+                    "Dünya mallarının çoğalmasından",
+                    "İnsanların övgüsünden"
+                ],
+                correctIndex: 0
+            },
+            {
+                ref: "İbrahim Suresi, 7. Ayet",
+                ayah: "Eğer şükrederseniz elbette size (nimetimi) artırırım. Eğer nankörlük ederseniz hiç şüphesiz azabım çok şiddetlidir.",
+                question: "Ayete göre şükretmenin karşılığı nedir?",
+                options: [
+                    "Allah'ın nimetlerini daha da artırması",
+                    "Nimetlerin tamamen eksilmesi",
+                    "Hiçbir değişiklik olmaması"
+                ],
+                correctIndex: 0
+            },
+            {
+                ref: "Ra'd Suresi, 28. Ayet",
+                ayah: "Onlar, inananlar ve kalpleri Allah'ı anmakla huzura kavuşanlardır. Biliniz ki, kalpler ancak Allah'ı anmakla huzur bulur.",
+                question: "Ayette kalplerin gerçek huzura kavuşmasının yolu olarak ne gösterilmiştir?",
+                options: [
+                    "Allah'ı anmak (zikretmek)",
+                    "Çok fazla konuşmak",
+                    "Mal ve mülk yığmak"
+                ],
+                correctIndex: 0
+            },
+            {
+                ref: "Alak Suresi, 1. Ayet",
+                ayah: "Yaratan Rabbinin adıyla oku!",
+                question: "Kur'an-ı Kerim'de indirilen ilk ayetin ilk emri nedir?",
+                options: [
+                    "Oku!",
+                    "Yaz!",
+                    "Bekle!"
+                ],
+                correctIndex: 0
+            },
+            {
+                ref: "Asr Suresi, 1-3. Ayetler",
+                ayah: "Asra yemin olsun ki insan gerçekten ziyan içindedir. Ancak iman edip salih ameller işleyenler, birbirlerine hakkı ve sabrı tavsiye edenler müstesna.",
+                question: "Asr Suresi'ne göre ziyandan kurtulanların özelliklerinden biri aşağıdakilerden hangisidir?",
+                options: [
+                    "İman edip salih amel işlemek, hakkı ve sabrı tavsiye etmek",
+                    "Sadece kendi menfaatini düşünmek",
+                    "Zamanı boşa harcamak"
+                ],
+                correctIndex: 0
+            }
+        ];
+
+        let currentAyahIndex = 0;
+        let lastAyahIndex = -1;
+        let dailyAyahRewardClaimedToday = false;
+        let dailyAyahAnsweredWrongToday = false;
+
+        function pickNewAyahForEntry() {
+            if (AYAH_QUIZ_POOL.length <= 1) {
+                currentAyahIndex = 0;
+                return;
+            }
+            let nextIdx = Math.floor(Math.random() * AYAH_QUIZ_POOL.length);
+            if (nextIdx === lastAyahIndex) {
+                nextIdx = (nextIdx + 1) % AYAH_QUIZ_POOL.length;
+            }
+            lastAyahIndex = nextIdx;
+            currentAyahIndex = nextIdx;
+        }
+
+        function updateDailyAyahUI() {
+            const item = AYAH_QUIZ_POOL[currentAyahIndex];
+            const refEl = document.getElementById('dailyAyahRef');
+            const textEl = document.getElementById('dailyAyahText');
+            const btnLabel = document.getElementById('ayahQuizBtnLabel');
+            const btnEl = document.getElementById('openAyahQuizBtn');
+
+            if (refEl) refEl.textContent = item.ref;
+            if (textEl) textEl.textContent = `"${item.ayah}"`;
+
+            if (btnLabel && btnEl) {
+                if (dailyAyahRewardClaimedToday) {
+                    btnLabel.textContent = "Bugünkü +100 💎 Ödülü Alındı ✓";
+                    btnEl.className = "w-full py-2 px-3 rounded-xl bg-emerald-800/80 border border-emerald-500/60 text-emerald-200 font-bold text-xs transition flex items-center justify-center gap-1.5";
+                } else {
+                    btnLabel.textContent = "Günün Ayet Sorusunu Bil (+100 💎)";
+                    btnEl.className = "w-full py-2 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400 text-amber-300 font-extrabold text-xs transition flex items-center justify-center gap-1.5";
+                }
+            }
+        }
+
+        function openDailyAyahQuizModal() {
+            const item = AYAH_QUIZ_POOL[currentAyahIndex];
+            document.getElementById('quizAyahRef').textContent = item.ref;
+            document.getElementById('quizAyahText').textContent = `"${item.ayah}"`;
+            document.getElementById('quizQuestionText').textContent = item.question;
+
+            const optsContainer = document.getElementById('quizOptionsContainer');
+            optsContainer.innerHTML = '';
+
+            item.options.forEach((optText, idx) => {
+                const btn = document.createElement('button');
+                const isCorrect = idx === item.correctIndex;
+
+                if (dailyAyahRewardClaimedToday && isCorrect) {
+                    btn.className = "w-full p-3 rounded-xl bg-emerald-700 border-2 border-emerald-400 text-white font-bold text-xs sm:text-sm flex items-center justify-between";
+                    btn.innerHTML = `<span>${optText}</span> <i class="fa-solid fa-circle-check text-amber-300"></i>`;
+                    btn.disabled = true;
+                } else if (dailyAyahRewardClaimedToday) {
+                    btn.className = "w-full p-3 rounded-xl bg-emerald-900/40 border border-emerald-800 text-emerald-400/60 text-xs sm:text-sm";
+                    btn.textContent = optText;
+                    btn.disabled = true;
+                } else {
+                    btn.className = "w-full p-3 rounded-xl bg-emerald-900/80 hover:bg-emerald-800 border border-emerald-600/70 text-emerald-100 font-semibold text-xs sm:text-sm transition active:scale-98";
+                    btn.textContent = optText;
+                    btn.onclick = () => submitDailyAyahAnswer(idx);
+                }
+                optsContainer.appendChild(btn);
+            });
+
+            const modal = document.getElementById('dailyAyahQuizModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeDailyAyahQuizModal() {
+            const modal = document.getElementById('dailyAyahQuizModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function submitDailyAyahAnswer(selectedIdx) {
+            if (dailyAyahRewardClaimedToday) return;
+            const item = AYAH_QUIZ_POOL[currentAyahIndex];
+
+            if (selectedIdx === item.correctIndex) {
+                dailyAyahRewardClaimedToday = true;
+                score += 100;
+                updateAllCurrencyDisplays();
+                updateDailyAyahUI();
+                playTone(["C5", "E5", "G5", "C6"], "8n");
+                showToast("Maşallah! Doğru cevap: +100 Mücevher kazandınız!");
+                openDailyAyahQuizModal(); // Seçili doğru şıkkı göster
+            } else {
+                playTone(["E4", "C4"], "8n");
+                showToast("Yanlış cevap, ayeti tekrar okuyup yeniden deneyin!");
+            }
+        }
+
+        // Başlangıç: Doğrudan statik bolumler.json dosyasını okur
+        async function initGame() {
+            await loadLevelsFromJson('./bolumler.json');
+            build3000LevelsSystem();
+            pickNewAyahForEntry();
+            loadLevel(currentLevelIdx);
+            updateHomeScreenUI();
+            setupPointerEvents();
+            window.addEventListener('resize', () => {
+                renderCrosswordGrid();
+                renderWheel();
+            });
+        }
+
+        // Ana Sayfa Arayüzü Güncelleme ve Geçiş Fonksiyonları
+        function updateHomeScreenUI() {
+            const levelNum = currentLevelIdx + 1;
+            const isHard = (levelNum % 10 === 0);
+            const homeLevelEl = document.getElementById('homeCurrentLevelText');
+            const playBtnEl = document.getElementById('playBtnText');
+            const homeScoreEl = document.getElementById('homeScoreDisplay');
+            const homeCoinEl = document.getElementById('homeWowCoinDisplay');
+
+            if (homeLevelEl) {
+                homeLevelEl.textContent = isHard
+                    ? `Bölüm ${levelNum} / ${TOTAL_LEVELS} 🔥 ZOR`
+                    : `Bölüm ${levelNum} / ${TOTAL_LEVELS}`;
+            }
+            if (playBtnEl) {
+                playBtnEl.textContent = `OYNA (BÖLÜM ${levelNum})`;
+            }
+            if (homeScoreEl) homeScoreEl.textContent = score;
+            if (homeCoinEl) homeCoinEl.textContent = wowCoins;
+            updateDailyAyahUI();
+            updateDailyWheelUI();
+        }
+
+        // Günlük Çark Kontrolleri ve Çevirme Mantığı
+        function openDailyWheelModal() {
+            updateDailyWheelUI();
+            const modal = document.getElementById('dailyWheelModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeDailyWheelModal() {
+            if (isWheelSpinning) return;
+            const modal = document.getElementById('dailyWheelModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function updateDailyWheelUI() {
+            const remaining = MAX_DAILY_SPINS - dailySpinsUsed;
+            const nextCost = SPIN_COSTS[dailySpinsUsed] ?? 0;
+
+            const leftEl = document.getElementById('wheelSpinsLeftText');
+            const coinEl = document.getElementById('wheelModalCoinDisplay');
+            const btnEl = document.getElementById('spinWheelBtn');
+            const labelEl = document.getElementById('spinBtnLabel');
+            const homeBadge = document.getElementById('homeWheelBadge');
+
+            if (leftEl) leftEl.innerHTML = `Bugünkü Kalan Hak: <b>${remaining} / ${MAX_DAILY_SPINS}</b>`;
+            if (coinEl) coinEl.textContent = wowCoins;
+
+            if (homeBadge) {
+                if (remaining <= 0) {
+                    homeBadge.textContent = 'BİTTİ';
+                    homeBadge.className = 'px-2 py-0.5 rounded-full bg-slate-700 text-slate-300 text-[10px] font-black';
+                } else if (nextCost === 0) {
+                    homeBadge.textContent = 'ÜCRETSİZ';
+                    homeBadge.className = 'px-2 py-0.5 rounded-full bg-amber-500 text-emerald-950 text-[10px] font-black';
+                } else {
+                    homeBadge.textContent = `${remaining} HAK`;
+                    homeBadge.className = 'px-2 py-0.5 rounded-full bg-emerald-400 text-emerald-950 text-[10px] font-black';
+                }
+            }
+
+            if (btnEl && labelEl) {
+                if (remaining <= 0) {
+                    btnEl.disabled = true;
+                    btnEl.classList.add('opacity-50', 'cursor-not-allowed');
+                    labelEl.textContent = 'GÜNLÜK HAK DOLDU (6/6)';
+                } else {
+                    btnEl.disabled = false;
+                    btnEl.classList.remove('opacity-50', 'cursor-not-allowed');
+                    labelEl.textContent = nextCost === 0
+                        ? 'ÇEVİR (ÜCRETSİZ)'
+                        : `ÇEVİR (${nextCost} İSLAMİ WOW PARASI)`;
+                }
+            }
+        }
+
+        function spinDailyWheel() {
+            if (isWheelSpinning) return;
+            if (dailySpinsUsed >= MAX_DAILY_SPINS) {
+                showToast("Bugünkü 6 çevirme hakkınızı kullandınız!");
+                return;
+            }
+
+            const cost = SPIN_COSTS[dailySpinsUsed];
+            if (cost > 0) {
+                if (wowCoins < cost) {
+                    showToast(`Bu çevirme için ${cost} İslami WoW Parası gerekli!`);
+                    return;
+                }
+                wowCoins -= cost;
+                document.getElementById('wowCoinDisplay').textContent = wowCoins;
+                const homeCoinEl = document.getElementById('homeWowCoinDisplay');
+                if (homeCoinEl) homeCoinEl.textContent = wowCoins;
+            }
+
+            dailySpinsUsed++;
+            isWheelSpinning = true;
+            updateDailyWheelUI();
+            playTone(["C5", "E5", "G5"], "16n");
+
+            const prizeIdx = Math.floor(Math.random() * WHEEL_PRIZES.length);
+            const sliceAngle = 360 / WHEEL_PRIZES.length; // 45 derece
+            const targetAngle = 360 - (prizeIdx * sliceAngle + sliceAngle / 2);
+            const extraSpins = 5 * 360;
+            const currentMod = currentWheelRotation % 360;
+            const delta = (targetAngle - currentMod + 360) % 360;
+            currentWheelRotation += extraSpins + delta;
+
+            const spinner = document.getElementById('prizeWheelSpinner');
+            if (spinner) {
+                spinner.style.transform = `rotate(${currentWheelRotation}deg)`;
+            }
+
+            setTimeout(() => {
+                isWheelSpinning = false;
+                const won = WHEEL_PRIZES[prizeIdx];
+
+                if (won.type === "gem") {
+                    score += won.amount;
+                    document.getElementById('scoreDisplay').textContent = score;
+                    const homeScoreEl = document.getElementById('homeScoreDisplay');
+                    if (homeScoreEl) homeScoreEl.textContent = score;
+                } else if (won.type === "hint") {
+                    freeHints += won.amount;
+                    updateHintButtonUI();
+                } else if (won.type === "hammer") {
+                    freeHammers += won.amount;
+                    updateHammerUI();
+                } else if (won.type === "coin") {
+                    wowCoins += won.amount;
+                    document.getElementById('wowCoinDisplay').textContent = wowCoins;
+                    const homeCoinEl = document.getElementById('homeWowCoinDisplay');
+                    if (homeCoinEl) homeCoinEl.textContent = wowCoins;
+                }
+
+                playTone(["C5", "E5", "G5", "C6"], "8n");
+                showToast(`Tebrikler! Çarktan ${won.label} kazandınız!`);
+                updateDailyWheelUI();
+            }, 4050);
+        }
+
+        function startGameFromHome() {
+            const home = document.getElementById('homeScreen');
+            if (home) home.classList.add('hidden');
+            renderCrosswordGrid();
+            renderWheel();
+            playTone(["C5", "E5"], "16n");
+        }
+
+        function goToHomeScreen() {
+            pickNewAyahForEntry();
+            updateHomeScreenUI();
+            const home = document.getElementById('homeScreen');
+            if (home) home.classList.remove('hidden');
+        }
+
+        function openLevelSelectModal() {
+            const grid = document.getElementById('levelsPreviewGrid');
+            if (grid) {
+                grid.innerHTML = '';
+                const fragment = document.createDocumentFragment();
+                let activeBadgeEl = null;
+
+                for (let lvl = 1; lvl <= TOTAL_LEVELS; lvl++) {
+                    const idx = lvl - 1;
+                    const isHard = (lvl % 10 === 0);
+                    const isCompleted = idx < maxUnlockedLevelIdx;
+                    const isCurrent = idx === currentLevelIdx;
+
+                    const badge = document.createElement('div');
+                    let classes = 'h-10 rounded-xl flex flex-col items-center justify-center text-xs font-extrabold border select-none cursor-default ';
+
+                    if (isCurrent) {
+                        classes += 'bg-amber-500 text-emerald-950 border-amber-200 shadow-md';
+                        activeBadgeEl = badge;
+                    } else if (isCompleted) {
+                        classes += 'bg-emerald-700/90 text-emerald-100 border-emerald-500/70';
+                    } else if (lvl === TOTAL_LEVELS) {
+                        classes += 'bg-amber-900/80 text-amber-300 border-amber-400/70';
+                    } else if (isHard) {
+                        classes += 'bg-red-950/70 text-amber-300/70 border-red-700/50';
+                    } else {
+                        classes += 'bg-emerald-950/80 text-emerald-500/70 border-emerald-800/60';
+                    }
+
+                    badge.className = classes;
+                    badge.innerHTML = isCurrent
+                        ? `<span>${lvl}</span><span class="text-[8px] leading-none">AKTİF</span>`
+                        : isCompleted
+                            ? `<span>${lvl}</span><i class="fa-solid fa-check text-[9px]"></i>`
+                            : lvl === TOTAL_LEVELS
+                                ? `<span>${lvl}</span><span class="text-[7px] leading-none">👑ESMA</span>`
+                                : isHard
+                                    ? `<span>${lvl}</span><span class="text-[8px] leading-none">🔥ZOR</span>`
+                                    : `<span>${lvl}</span><i class="fa-solid fa-lock text-[8px] opacity-60"></i>`;
+
+                    fragment.appendChild(badge);
+                }
+
+                grid.appendChild(fragment);
+
+                const modal = document.getElementById('levelSelectModal');
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+
+                if (activeBadgeEl) {
+                    setTimeout(() => {
+                        activeBadgeEl.scrollIntoView({ block: 'center', behavior: 'instant' });
+                    }, 10);
+                }
+                return;
+            }
+            const modal = document.getElementById('levelSelectModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeLevelSelectModal() {
+            const modal = document.getElementById('levelSelectModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function jumpToSelectedLevel() {
+            const val = parseInt(document.getElementById('levelJumpInput').value, 10);
+            if (isNaN(val) || val < 1 || val > TOTAL_LEVELS) {
+                showToast(`Lütfen 1 ile ${TOTAL_LEVELS} arasında bir bölüm girin!`);
+                return;
+            }
+            currentLevelIdx = val - 1;
+            closeLevelSelectModal();
+            loadLevel(currentLevelIdx);
+            updateHomeScreenUI();
+        }
+
+        // 500 Bölümlük Sistemi Kurar ve Her 10 Bölümde Bir Zor Bölüm Yerleştirir
+        function build3000LevelsSystem() {
+            const extraIslamicLevels = ISLAMIC_NORMAL_POOL
+                .map(item => buildCrosswordLevelFromItems(item.topic, item.words))
+                .filter(Boolean);
+            const normalPool = [...(LEVELS.length > 0 ? LEVELS : FALLBACK_LEVELS), ...extraIslamicLevels];
+            const builtHardPool = HARD_LEVEL_POOL
+                .map((h, i) => buildCrosswordLevelFromItems(`Zor Bölüm - ${h.topic}`, h.words))
+                .filter(Boolean);
+
+            const generated = [];
+            for (let i = 0; i < TOTAL_LEVELS; i++) {
+                const levelNum = i + 1;
+                const isHardLevel = (levelNum % 10 === 0);
+
+                if (levelNum === TOTAL_LEVELS) {
+                    generated.push({
+                        title: `Bölüm ${TOTAL_LEVELS} / ${TOTAL_LEVELS} 👑 ESMA-ÜL HÜSNA (12 İSİM)`,
+                        isHard: true,
+                        letters: ['R', 'A', 'H', 'M', 'N', 'İ', 'L', 'K', 'U', 'D', 'Ü', 'S', 'E', 'Z', 'C', 'B', 'G', 'F', 'T'],
+                        rows: 13,
+                        cols: 14,
+                        words: [
+                            { word: "RAHMAN", r: 0, c: 2, dir: 'H', meaning: "Dünyada bütün mahlûkata merhamet eden, şefkat gösteren (Er-Rahmân)." },
+                            { word: "RAHİM", r: 0, c: 2, dir: 'V', meaning: "Ahirette sadece müminlere sonsuz merhamet edecek olan (Er-Rahîm)." },
+                            { word: "MALİK", r: 4, c: 2, dir: 'H', meaning: "Mülkün gerçek ve ebedi sahibi olan (El-Mâlik)." },
+                            { word: "KUDDÜS", r: 4, c: 6, dir: 'V', meaning: "Her türlü eksiklik ve kusurdan münezzeh, tertemiz olan (El-Kuddûs)." },
+                            { word: "SELAM", r: 9, c: 6, dir: 'H', meaning: "Kullarını selamete çıkaran, esenlik ve barış kaynağı (Es-Selâm)." },
+                            { word: "MÜMİN", r: 7, c: 10, dir: 'V', meaning: "Gönüllere iman nuru veren, kullarına güven ve emniyet bahşeden (El-Mü'min)." },
+                            { word: "AZİZ", r: 4, c: 3, dir: 'V', meaning: "İzzet sahibi, her şeye galip gelen, mağlup edilmesi imkansız olan (El-Azîz)." },
+                            { word: "CEBBAR", r: 2, c: 9, dir: 'V', meaning: "İradesini her durumda yürüten, kırılanları onaran (El-Cebbâr)." },
+                            { word: "HALİK", r: 0, c: 4, dir: 'V', meaning: "Her şeyi yoktan var eden, yaratan (El-Hâlık)." },
+                            { word: "GAFFAR", r: 2, c: 8, dir: 'H', meaning: "Kullarının günahlarını tekrar tekrar örten ve bağışlayan (El-Gaffâr)." },
+                            { word: "REZZAK", r: 2, c: 13, dir: 'V', meaning: "Bütün canlıların rızkını veren ve kefil olan (Er-Rezzâk)." },
+                            { word: "FETTAH", r: 2, c: 11, dir: 'V', meaning: "Her türlü zorluğu kolaylaştıran, hayır kapılarını açan (El-Fettâh)." }
+                        ],
+                        bonus: ["İLAH", "HAK", "NUR", "ADİL", "ALİM", "SEMİ"]
+                    });
+                } else if (isHardLevel && builtHardPool.length > 0) {
+                    const hardTemplate = builtHardPool[(Math.floor(levelNum / 10) - 1) % builtHardPool.length];
+                    generated.push({
+                        ...hardTemplate,
+                        title: `Bölüm ${levelNum} / ${TOTAL_LEVELS} 🔥 ZOR BÖLÜM`,
+                        isHard: true
+                    });
+                } else {
+                    const normalTemplate = normalPool[i % normalPool.length];
+                    const cleanTopic = normalTemplate.title.replace(/^Bölüm\s*\d+\s*[-–:]?\s*/i, '').trim();
+                    generated.push({
+                        ...normalTemplate,
+                        title: cleanTopic ? `Bölüm ${levelNum} - ${cleanTopic}` : `Bölüm ${levelNum} / ${TOTAL_LEVELS}`,
+                        isHard: false
+                    });
+                }
+            }
+            LEVELS = generated;
+        }
+
+        // Harici JSON Dosyasından Bölümleri Oku ve Doğrula
+        async function loadLevelsFromJson(url) {
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                const parsedLevels = parseJsonLevelsData(data);
+                if (parsedLevels.length > 0) {
+                    LEVELS = parsedLevels;
+                    return;
+                }
+            } catch (err) {
+                console.warn("bolumler.json okunamadı, yedek bölümler kullanılıyor:", err);
+            }
+            LEVELS = [...FALLBACK_LEVELS];
+        }
+
+        // Hem koordinatlı JSON hem de sadece kelime-açıklama listesi içeren sade JSON formatlarını destekler
+        function parseJsonLevelsData(data) {
+            const rawList = Array.isArray(data) ? data : (data.levels || []);
+            const result = [];
+
+            for (const item of rawList) {
+                // Format 1: Hazır koordinatlı bulmaca JSON objesi
+                if (item.letters && Array.isArray(item.words) && item.words[0]?.r !== undefined) {
+                    result.push(item);
+                } 
+                // Format 2: Sadece { title, words: [{ word, meaning }, ...] } formatındaki sade JSON
+                else if (Array.isArray(item.words) && item.words.length > 0) {
+                    const autoBuilt = buildCrosswordLevelFromItems(item.title || `Bölüm ${result.length + 1}`, item.words);
+                    if (autoBuilt) result.push(autoBuilt);
+                }
+            }
+            return result;
+        }
+
+        // Bölümü Yükle
+        function loadLevel(idx) {
+            const levelData = LEVELS[idx % TOTAL_LEVELS];
+            wheelLetters = [...levelData.letters];
+            shuffleArray(wheelLetters);
+            
+            foundWords.clear();
+            gridCellsMap = {};
+            selectedNodes = [];
+            isDragging = false;
+            hammerMode = false;
+            updateHammerUI();
+
+            const levelEl = document.getElementById('levelDisplay');
+            if (levelEl) {
+                levelEl.textContent = levelData.title;
+                if (levelData.isHard) {
+                    levelEl.className = 'font-extrabold text-amber-300 text-xs sm:text-sm';
+                } else {
+                    levelEl.className = 'font-bold text-emerald-100 text-xs sm:text-sm';
+                }
+            }
+            updateBonusUI();
+            updateHintButtonUI();
+
+            // Izgara haritasını oluştur (kesişen hücreleri doğrula ve birleştir)
+            levelData.words.forEach((wObj, wIdx) => {
+                for (let i = 0; i < wObj.word.length; i++) {
+                    const r = wObj.dir === 'H' ? wObj.r : wObj.r + i;
+                    const c = wObj.dir === 'H' ? wObj.c + i : wObj.c;
+                    const key = `${r}-${c}`;
+                    if (!gridCellsMap[key]) {
+                        gridCellsMap[key] = {
+                            r, c,
+                            char: wObj.word[i],
+                            wordIndices: [wIdx],
+                            revealed: false
+                        };
+                    } else {
+                        // Kesişen hücrede harf uyuşmazlığı varsa konsolda uyar
+                        if (gridCellsMap[key].char !== wObj.word[i]) {
+                            console.error(`Kesişim hatası (${key}): ${gridCellsMap[key].char} != ${wObj.word[i]}`);
+                        }
+                        gridCellsMap[key].wordIndices.push(wIdx);
+                    }
+                }
+            });
+
+            renderCrosswordGrid();
+            renderWheel();
+            updatePreviewBadge();
+        }
+
+        // Words of Wonders Çapraz Bulmaca Izgarasını Çiz
+        function renderCrosswordGrid() {
+            const levelData = LEVELS[currentLevelIdx % LEVELS.length];
+            const gridEl = document.getElementById('crosswordGrid');
+            gridEl.innerHTML = '';
+
+            // Ekran boyutuna göre dinamik hücre boyutu hesapla
+            const maxAvailableWidth = Math.min(window.innerWidth - 32, 420);
+            const maxAvailableHeight = window.innerHeight * 0.42;
+            const cellSize = Math.floor(Math.min(
+                maxAvailableWidth / levelData.cols - 6,
+                maxAvailableHeight / levelData.rows - 6,
+                48
+            ));
+
+            gridEl.style.gridTemplateColumns = `repeat(${levelData.cols}, ${cellSize}px)`;
+            gridEl.style.gridTemplateRows = `repeat(${levelData.rows}, ${cellSize}px)`;
+
+            for (let r = 0; r < levelData.rows; r++) {
+                for (let c = 0; c < levelData.cols; c++) {
+                    const key = `${r}-${c}`;
+                    const cellData = gridCellsMap[key];
+                    const cellDiv = document.createElement('div');
+                    cellDiv.id = `grid-cell-${key}`;
+                    cellDiv.style.width = `${cellSize}px`;
+                    cellDiv.style.height = `${cellSize}px`;
+                    cellDiv.style.fontSize = `${Math.floor(cellSize * 0.52)}px`;
+
+                    if (cellData) {
+                        cellDiv.className = 'rounded-lg sm:rounded-xl flex items-center justify-center font-extrabold transition-all select-none ' + 
+                            (cellData.revealed ? 'cell-revealed' : (hammerMode ? 'cell-empty hammer-target' : 'cell-empty'));
+                        if (cellData.revealed) {
+                            cellDiv.textContent = cellData.char;
+                        } else {
+                            cellDiv.onclick = () => handleCellClickForHammer(key);
+                        }
+                    } else {
+                        // Boş ızgara alanı (görünmez)
+                        cellDiv.className = 'pointer-events-none';
+                    }
+                    gridEl.appendChild(cellDiv);
+                }
+            }
+        }
+
+        // Harf Çemberini Çiz
+        function renderWheel() {
+            const container = document.getElementById('lettersContainer');
+            const wrapper = document.getElementById('wheelWrapper');
+            if (!container || !wrapper) return;
+
+            container.innerHTML = '';
+            const rect = wrapper.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            const radius = (rect.width / 2) - 36;
+
+            const count = wheelLetters.length;
+            wheelLetters.forEach((letter, i) => {
+                const angle = (i * (2 * Math.PI) / count) - (Math.PI / 2);
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+
+                const node = document.createElement('div');
+                node.dataset.index = i;
+                node.style.left = `${x}px`;
+                node.style.top = `${y}px`;
+                node.className = 'letter-node absolute -translate-x-1/2 -translate-y-1/2 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white border-2 border-slate-300 text-black font-extrabold text-xl sm:text-2xl flex items-center justify-center shadow-md cursor-pointer';
+                node.textContent = letter;
+
+                if (selectedNodes.includes(i)) {
+                    node.classList.add('active');
+                }
+
+                container.appendChild(node);
+            });
+
+            drawLines();
+        }
+
+        // Dokunma ve Fare Sürükleme Olayları
+        function setupPointerEvents() {
+            const wrapper = document.getElementById('wheelWrapper');
+            const notes = ["C4", "D4", "E4", "F4", "G4", "A4", "B4", "C5"];
+
+            const handleStart = (clientX, clientY) => {
+                const nodeIdx = getNodeAtPosition(clientX, clientY);
+                if (nodeIdx !== null) {
+                    isDragging = true;
+                    selectedNodes = [nodeIdx];
+                    pointerPos = { x: clientX, y: clientY };
+                    playTone(notes[0]);
+                    updateWheelVisuals();
+                }
+            };
+
+            const handleMove = (clientX, clientY) => {
+                if (!isDragging) return;
+                pointerPos = { x: clientX, y: clientY };
+
+                const nodeIdx = getNodeAtPosition(clientX, clientY);
+                if (nodeIdx !== null) {
+                    if (selectedNodes.length >= 2 && selectedNodes[selectedNodes.length - 2] === nodeIdx) {
+                        selectedNodes.pop();
+                        playTone(notes[Math.max(0, selectedNodes.length - 1)]);
+                    } else if (!selectedNodes.includes(nodeIdx)) {
+                        selectedNodes.push(nodeIdx);
+                        playTone(notes[Math.min(notes.length - 1, selectedNodes.length - 1)]);
+                    }
+                }
+                updateWheelVisuals();
+            };
+
+            const handleEnd = () => {
+                if (!isDragging) return;
+                isDragging = false;
+                checkSelectedWord();
+                selectedNodes = [];
+                updateWheelVisuals();
+            };
+
+            wrapper.addEventListener('mousedown', (e) => handleStart(e.clientX, e.clientY));
+            window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
+            window.addEventListener('mouseup', handleEnd);
+
+            wrapper.addEventListener('touchstart', (e) => {
+                if (e.touches.length > 0) {
+                    handleStart(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: false });
+
+            window.addEventListener('touchmove', (e) => {
+                if (isDragging && e.touches.length > 0) {
+                    e.preventDefault();
+                    handleMove(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: false });
+
+            window.addEventListener('touchend', handleEnd);
+        }
+
+        function getNodeAtPosition(clientX, clientY) {
+            const nodes = document.querySelectorAll('.letter-node');
+            for (let node of nodes) {
+                const rect = node.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                const dist = Math.hypot(clientX - centerX, clientY - centerY);
+                if (dist <= rect.width * 0.65) {
+                    return parseInt(node.dataset.index);
+                }
+            }
+            return null;
+        }
+
+        function updateWheelVisuals() {
+            document.querySelectorAll('.letter-node').forEach(node => {
+                const idx = parseInt(node.dataset.index);
+                if (selectedNodes.includes(idx)) {
+                    node.classList.add('active');
+                } else {
+                    node.classList.remove('active');
+                }
+            });
+            updatePreviewBadge();
+            drawLines();
+        }
+
+        function drawLines() {
+            const svg = document.getElementById('lineCanvas');
+            const wrapper = document.getElementById('wheelWrapper');
+            if (!svg || !wrapper) return;
+
+            svg.innerHTML = '';
+            if (selectedNodes.length === 0) return;
+
+            const wrapperRect = wrapper.getBoundingClientRect();
+            const points = [];
+
+            selectedNodes.forEach(idx => {
+                const node = document.querySelector(`.letter-node[data-index="${idx}"]`);
+                if (node) {
+                    const r = node.getBoundingClientRect();
+                    points.push({
+                        x: (r.left + r.width / 2) - wrapperRect.left,
+                        y: (r.top + r.height / 2) - wrapperRect.top
+                    });
+                }
+            });
+
+            if (isDragging) {
+                points.push({
+                    x: pointerPos.x - wrapperRect.left,
+                    y: pointerPos.y - wrapperRect.top
+                });
+            }
+
+            if (points.length > 1) {
+                const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                const ptsStr = points.map(p => `${p.x},${p.y}`).join(' ');
+                polyline.setAttribute('points', ptsStr);
+                polyline.setAttribute('fill', 'none');
+                polyline.setAttribute('stroke', '#f59e0b');
+                polyline.setAttribute('stroke-width', '8');
+                polyline.setAttribute('stroke-linecap', 'round');
+                polyline.setAttribute('stroke-linejoin', 'round');
+                polyline.setAttribute('opacity', '0.85');
+                svg.appendChild(polyline);
+            }
+        }
+
+        function updatePreviewBadge() {
+            const badge = document.getElementById('currentWordBadge');
+            if (!badge) return;
+            if (selectedNodes.length === 0) {
+                badge.classList.add('opacity-0');
+                return;
+            }
+            const formedWord = selectedNodes.map(i => wheelLetters[i]).join('');
+            badge.textContent = formedWord;
+            badge.classList.remove('opacity-0');
+        }
+
+        // Oluşturulan Kelimeyi Kontrol Et (Bulmaca veya Ekstra Kelime - En az 3 harf)
+        function checkSelectedWord() {
+            if (selectedNodes.length < 3) return;
+
+            const formedWord = selectedNodes.map(i => wheelLetters[i]).join('');
+            const levelData = LEVELS[currentLevelIdx % LEVELS.length];
+            const matchIndex = levelData.words.findIndex(w => w.word === formedWord);
+
+            // 1. Bulmacadaki ana kelimelerden biri mi?
+            if (matchIndex !== -1) {
+                if (foundWords.has(formedWord)) {
+                    shakeWordCells(levelData.words[matchIndex]);
+                    showToast("Bu kelime zaten açıldı!");
+                } else {
+                    foundWords.add(formedWord);
+                    revealWordOnGrid(levelData.words[matchIndex]);
+                    playTone(["C5", "E5", "G5"], "8n");
+                    
+                    score += formedWord.length * 5;
+                    updateAllCurrencyDisplays();
+
+                    if (foundWords.size === levelData.words.length) {
+                        setTimeout(() => showLevelCompleteModal(levelData.words), 700);
+                    }
+                }
+                return;
+            }
+
+            // 2. Ekstra (Bonus) kelimelerden biri mi? (10 tane birikince +50 Elmas)
+            if (levelData.bonus && levelData.bonus.includes(formedWord)) {
+                const uniqueKey = `${currentLevelIdx}:${formedWord}`;
+                if (bonusWordsFound.has(uniqueKey)) {
+                    showToast("Bu ekstra kelimeyi zaten topladınız!");
+                } else {
+                    bonusWordsFound.add(uniqueKey);
+                    bonusProgressCount++;
+
+                    if (bonusProgressCount >= BONUS_TARGET_COUNT) {
+                        bonusProgressCount = 0;
+                        score += BONUS_REWARD_GEMS;
+                        updateAllCurrencyDisplays();
+                        updateBonusUI();
+                        playTone(["C5", "E5", "G5", "C6"], "8n");
+                        showToast(`10 Ekstra Kelime Tamamlandı! +${BONUS_REWARD_GEMS} Elmas Kazandınız!`);
+                    } else {
+                        updateBonusUI();
+                        playTone(["E5", "A5"], "8n");
+                        showToast(`Ekstra Kelime Birikti (${bonusProgressCount}/${BONUS_TARGET_COUNT}): ${formedWord}`);
+                    }
+                }
+                return;
+            }
+        }
+
+        // Bulmacadaki Kelimenin Hücrelerini Aç
+        function revealWordOnGrid(wObj) {
+            for (let i = 0; i < wObj.word.length; i++) {
+                const r = wObj.dir === 'H' ? wObj.r : wObj.r + i;
+                const c = wObj.dir === 'H' ? wObj.c + i : wObj.c;
+                const key = `${r}-${c}`;
+                
+                if (gridCellsMap[key]) {
+                    gridCellsMap[key].revealed = true;
+                }
+
+                setTimeout(() => {
+                    const cellEl = document.getElementById(`grid-cell-${key}`);
+                    if (cellEl) {
+                        cellEl.textContent = wObj.word[i];
+                        cellEl.classList.remove('cell-empty');
+                        cellEl.classList.add('cell-revealed');
+                    }
+                }, i * 75);
+            }
+        }
+
+        // Zaten Açılmış Kelimeyi Salla
+        function shakeWordCells(wObj) {
+            for (let i = 0; i < wObj.word.length; i++) {
+                const r = wObj.dir === 'H' ? wObj.r : wObj.r + i;
+                const c = wObj.dir === 'H' ? wObj.c + i : wObj.c;
+                const cellEl = document.getElementById(`grid-cell-${r}-${c}`);
+                if (cellEl) {
+                    cellEl.classList.remove('shake-anim');
+                    void cellEl.offsetWidth;
+                    cellEl.classList.add('shake-anim');
+                }
+            }
+        }
+
+        function shuffleWheel() {
+            shuffleArray(wheelLetters);
+            renderWheel();
+            playTone("G4", "32n");
+        }
+
+        function updateHintButtonUI() {
+            const label = document.getElementById('hintCostLabel');
+            if (!label) return;
+            if (freeHints > 0) {
+                label.textContent = `${freeHints} Hak`;
+                label.className = 'text-[9px] font-extrabold text-emerald-700 leading-none mt-0.5';
+            } else {
+                label.textContent = '100💎';
+                label.className = 'text-[9px] font-extrabold text-black leading-none mt-0.5';
+            }
+        }
+
+        // İpucu: Rastgele Açılmamış Bir Hücreyi Aç
+        function revealRandomLetter() {
+            const unrevealedKeys = Object.keys(gridCellsMap).filter(k => !gridCellsMap[k].revealed);
+            if (unrevealedKeys.length === 0) return;
+
+            if (freeHints > 0) {
+                freeHints--;
+                updateHintButtonUI();
+                showToast(`Ücretsiz ipucu kullanıldı! (Kalan hak: ${freeHints})`);
+            } else {
+                if (score < 100) {
+                    showToast("İpucu için en az 100 elmas gerekli!");
+                    return;
+                }
+                score -= 100;
+                document.getElementById('scoreDisplay').textContent = score;
+            }
+            playTone("A5", "16n");
+
+            const randomKey = unrevealedKeys[Math.floor(Math.random() * unrevealedKeys.length)];
+            const cellData = gridCellsMap[randomKey];
+            cellData.revealed = true;
+
+            const cellEl = document.getElementById(`grid-cell-${randomKey}`);
+            if (cellEl) {
+                cellEl.textContent = cellData.char;
+                cellEl.classList.remove('cell-empty');
+                cellEl.classList.add('cell-revealed');
+            }
+
+            // İpucuyla tamamlanan kelime varsa kontrol et
+            const levelData = LEVELS[currentLevelIdx % LEVELS.length];
+            levelData.words.forEach(wObj => {
+                if (!foundWords.has(wObj.word)) {
+                    let allOpen = true;
+                    for (let i = 0; i < wObj.word.length; i++) {
+                        const r = wObj.dir === 'H' ? wObj.r : wObj.r + i;
+                        const c = wObj.dir === 'H' ? wObj.c + i : wObj.c;
+                        if (!gridCellsMap[`${r}-${c}`].revealed) {
+                            allOpen = false;
+                            break;
+                        }
+                    }
+                    if (allOpen) {
+                        foundWords.add(wObj.word);
+                    }
+                }
+            });
+
+            if (foundWords.size === levelData.words.length) {
+                setTimeout(() => showLevelCompleteModal(levelData.words), 700);
+            }
+        }
+
+        // Çekiç Modunu Aç / Kapat (2 Ücretsiz Hak veya 200 Elmas)
+        function toggleHammerMode() {
+            if (hammerMode) {
+                hammerMode = false;
+                updateHammerUI();
+                renderCrosswordGrid();
+                return;
+            }
+            if (freeHammers <= 0 && score < 200) {
+                showToast("Çekiç kullanmak için 200 elmas gerekli!");
+                return;
+            }
+            hammerMode = true;
+            updateHammerUI();
+            renderCrosswordGrid();
+            showToast("Açmak istediğiniz tek bir harf kutusuna dokunun!");
+        }
+
+        function updateHammerUI() {
+            const btn = document.getElementById('hammerBtn');
+            const label = document.getElementById('hammerCostLabel');
+            if (label) {
+                if (freeHammers > 0) {
+                    label.textContent = `${freeHammers} Hak`;
+                    label.className = 'text-[9px] font-extrabold text-sky-700 leading-none mt-0.5';
+                } else {
+                    label.textContent = '200💎';
+                    label.className = 'text-[9px] font-extrabold text-black leading-none mt-0.5';
+                }
+            }
+            if (!btn) return;
+            if (hammerMode) {
+                btn.classList.add('ring-4', 'ring-amber-400', 'bg-amber-100');
+            } else {
+                btn.classList.remove('ring-4', 'ring-amber-400', 'bg-amber-100');
+            }
+        }
+
+        // Çekiç Aktifken Tıklanan Tek Bir Harf Kutusunu Aç
+        function handleCellClickForHammer(key) {
+            if (!hammerMode) return;
+            const cellData = gridCellsMap[key];
+            if (!cellData || cellData.revealed) return;
+
+            if (freeHammers > 0) {
+                freeHammers--;
+                showToast(`Ücretsiz çekiç kullanıldı! '${cellData.char}' açıldı (Kalan hak: ${freeHammers})`);
+            } else {
+                score -= 200;
+                document.getElementById('scoreDisplay').textContent = score;
+                showToast(`Çekiç kullanıldı: '${cellData.char}' harfi açıldı!`);
+            }
+
+            hammerMode = false;
+            updateHammerUI();
+
+            cellData.revealed = true;
+            renderCrosswordGrid();
+            playTone("A5", "16n");
+
+            // Bu harf açılınca tamamlanan kelime varsa kontrol et
+            const levelData = LEVELS[currentLevelIdx % LEVELS.length];
+            levelData.words.forEach(wObj => {
+                if (!foundWords.has(wObj.word)) {
+                    let allOpen = true;
+                    for (let i = 0; i < wObj.word.length; i++) {
+                        const r = wObj.dir === 'H' ? wObj.r : wObj.r + i;
+                        const c = wObj.dir === 'H' ? wObj.c + i : wObj.c;
+                        if (!gridCellsMap[`${r}-${c}`].revealed) {
+                            allOpen = false;
+                            break;
+                        }
+                    }
+                    if (allOpen) {
+                        foundWords.add(wObj.word);
+                    }
+                }
+            });
+
+            if (foundWords.size === levelData.words.length) {
+                setTimeout(() => showLevelCompleteModal(levelData.words), 700);
+            }
+        }
+
+        // Ekstra Kelimeler Arayüzü ve Modalı
+        function updateBonusUI() {
+            const badge = document.getElementById('bonusCountBadge');
+            const progressText = document.getElementById('bonusProgressText');
+            const progressBar = document.getElementById('bonusProgressBar');
+
+            if (badge) badge.textContent = `${bonusProgressCount}/${BONUS_TARGET_COUNT}`;
+            if (progressText) progressText.textContent = `${bonusProgressCount} / ${BONUS_TARGET_COUNT}`;
+            if (progressBar) progressBar.style.width = `${(bonusProgressCount / BONUS_TARGET_COUNT) * 100}%`;
+        }
+
+        function showBonusModal() {
+            updateBonusUI();
+            const list = document.getElementById('bonusWordsList');
+            if (bonusWordsFound.size === 0) {
+                list.innerHTML = '<span class="text-xs text-emerald-500 italic">Henüz ekstra kelime bulunmadı.</span>';
+            } else {
+                list.innerHTML = Array.from(bonusWordsFound).map(entry => {
+                    const wordOnly = entry.includes(':') ? entry.split(':')[1] : entry;
+                    return `<span class="px-3 py-1 rounded-lg bg-emerald-800 border border-emerald-600 text-amber-300 font-bold text-xs">${wordOnly}</span>`;
+                }).join('');
+            }
+            const modal = document.getElementById('bonusModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeBonusModal() {
+            const modal = document.getElementById('bonusModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Bölüm Sonu Modalı
+        function showLevelCompleteModal(words) {
+            playTone(["C5", "E5", "G5", "C6"], "4n");
+            const list = document.getElementById('learnedTermsList');
+            list.innerHTML = '';
+
+            words.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'border-b border-emerald-800/80 pb-2 last:border-b-0 last:pb-0';
+                div.innerHTML = `
+                    <div class="font-bold text-amber-400 text-sm">${item.word}</div>
+                    <div class="text-xs text-emerald-100/90 leading-snug">${item.meaning}</div>
+                `;
+                list.appendChild(div);
+            });
+
+            const levelData = LEVELS[currentLevelIdx % TOTAL_LEVELS];
+            const actionBtn = document.getElementById('levelCompleteActionBtn');
+            if (actionBtn) {
+                actionBtn.innerHTML = levelData && levelData.isHard
+                    ? 'Ödül Kutusunu Gör <i class="fa-solid fa-box-open ml-1.5"></i>'
+                    : 'Sonraki Bölüm <i class="fa-solid fa-arrow-right ml-1.5"></i>';
+            }
+
+            const modal = document.getElementById('levelCompleteModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        let hardChestOpened = false;
+
+        // Bölüm Tamamlandıktan Sonra Zor Bölümse Kutu Aç, Değilse Sonraki Bölüme Geç
+        function handleLevelCompleteContinue() {
+            const modal = document.getElementById('levelCompleteModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+
+            const levelData = LEVELS[currentLevelIdx % TOTAL_LEVELS];
+            if (levelData && levelData.isHard) {
+                openHardChestModal();
+            } else {
+                nextLevel();
+            }
+        }
+
+        function openHardChestModal() {
+            hardChestOpened = false;
+            const iconEl = document.getElementById('chestIcon');
+            const statusEl = document.getElementById('chestStatusText');
+            const btnEl = document.getElementById('chestActionBtn');
+
+            if (iconEl) iconEl.className = 'fa-solid fa-box-open text-5xl text-amber-400 animate-bounce';
+            if (statusEl) statusEl.textContent = 'DOKUN VE AÇ';
+            if (btnEl) {
+                btnEl.textContent = 'Sandığı Aç';
+                btnEl.onclick = openHardLevelChest;
+            }
+
+            const modal = document.getElementById('hardChestModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        // Zor Bölüm Sandığını Aç (%25 ihtimalle 1-10 arası İslami WoW Parası çıkar)
+        function openHardLevelChest() {
+            if (hardChestOpened) {
+                closeHardChestAndContinue();
+                return;
+            }
+            hardChestOpened = true;
+
+            const iconEl = document.getElementById('chestIcon');
+            const statusEl = document.getElementById('chestStatusText');
+            const btnEl = document.getElementById('chestActionBtn');
+
+            const isLucky = Math.random() < 0.25; // %25 ihtimal
+            if (isLucky) {
+                const wonCoins = Math.floor(Math.random() * 10) + 1; // 1 ile 10 arası
+                wowCoins += wonCoins;
+                updateAllCurrencyDisplays();
+                playTone(["C5", "E5", "G5", "C6"], "8n");
+
+                if (iconEl) iconEl.className = 'fa-solid fa-coins text-5xl text-emerald-400';
+                if (statusEl) statusEl.textContent = `+${wonCoins} İSLAMİ WOW PARASI!`;
+                showToast(`Tebrikler! Sandıktan ${wonCoins} İslami WoW Parası çıktı!`);
+            } else {
+                playTone(["E4", "C4"], "8n");
+                if (iconEl) iconEl.className = 'fa-solid fa-box text-5xl text-slate-400';
+                if (statusEl) statusEl.textContent = 'SANDIK BOŞ ÇIKTI';
+                showToast("Bu sefer sandık boş çıktı! Sonraki zor bölümde tekrar deneyin.");
+            }
+
+            if (btnEl) {
+                btnEl.innerHTML = 'Sonraki Bölüme Geç <i class="fa-solid fa-arrow-right ml-1.5"></i>';
+                btnEl.onclick = closeHardChestAndContinue;
+            }
+        }
+
+        function closeHardChestAndContinue() {
+            const modal = document.getElementById('hardChestModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            nextLevel();
+        }
+
+        // Market Modalı ve Satın Alma Fonksiyonları
+        function openMarketModal() {
+            updateAllCurrencyDisplays();
+            const modal = document.getElementById('marketModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeMarketModal() {
+            const modal = document.getElementById('marketModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function updateAllCurrencyDisplays() {
+            const gameCoin = document.getElementById('wowCoinDisplay');
+            const homeCoin = document.getElementById('homeWowCoinDisplay');
+            const marketCoin = document.getElementById('marketCoinDisplay');
+            const wheelCoin = document.getElementById('wheelModalCoinDisplay');
+            const gameScore = document.getElementById('scoreDisplay');
+            const homeScore = document.getElementById('homeScoreDisplay');
+
+            if (gameCoin) gameCoin.textContent = wowCoins;
+            if (homeCoin) homeCoin.textContent = wowCoins;
+            if (marketCoin) marketCoin.textContent = wowCoins;
+            if (wheelCoin) wheelCoin.textContent = wowCoins;
+            if (gameScore) gameScore.textContent = score;
+            if (homeScore) homeScore.textContent = score;
+        }
+
+        function buyMarketItem(itemType, cost) {
+            if (wowCoins < cost) {
+                showToast(`Yetersiz bakiye! Bu paket için ${cost} İslami WoW Parası gerekli.`);
+                return;
+            }
+
+            wowCoins -= cost;
+
+            if (itemType === 'gem250') {
+                score += 250;
+                showToast("Market: +250 Elmas satın alındı!");
+            } else if (itemType === 'hint3') {
+                freeHints += 3;
+                updateHintButtonUI();
+                showToast("Market: +3 Ücretsiz İpucu satın alındı!");
+            } else if (itemType === 'hammer2') {
+                freeHammers += 2;
+                updateHammerUI();
+                showToast("Market: +2 Ücretsiz Çekiç satın alındı!");
+            } else if (itemType === 'bundle') {
+                score += 750;
+                freeHints += 2;
+                freeHammers += 2;
+                updateHintButtonUI();
+                updateHammerUI();
+                showToast("Market: Bereket Paketi (+750 Elmas, +2 İpucu, +2 Çekiç) alındı!");
+            }
+
+            playTone(["C5", "E5", "G5"], "16n");
+            updateAllCurrencyDisplays();
+        }
+
+        // Sonraki Bölüme Geç
+        function nextLevel() {
+            const modal = document.getElementById('levelCompleteModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+
+            currentLevelIdx = (currentLevelIdx + 1) % TOTAL_LEVELS;
+            if (currentLevelIdx > maxUnlockedLevelIdx) {
+                maxUnlockedLevelIdx = currentLevelIdx;
+            }
+            loadLevel(currentLevelIdx);
+        }
+
+        // Yardımcı Fonksiyonlar
+        function shuffleArray(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            if (!toast) return;
+            toast.textContent = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 1800);
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            const iconClass = soundEnabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
+            const homeBtn = document.getElementById('homeSoundBtn');
+            if (homeBtn) {
+                homeBtn.innerHTML = `<i class="${iconClass}"></i>`;
+            }
+        }
+
+        function playTone(notes, duration = "16n") {
+            if (!soundEnabled || typeof Tone === 'undefined') return;
+            try {
+                if (Tone.context && Tone.context.state !== 'running') {
+                    Tone.start();
+                }
+                if (!synth) {
+                    synth = new Tone.PolySynth(Tone.Synth, {
+                        oscillator: { type: "sine" },
+                        envelope: { attack: 0.01, decay: 0.12, sustain: 0.05, release: 0.2 }
+                    }).toDestination();
+                }
+                if (Array.isArray(notes)) {
+                    notes.forEach((n, i) => {
+                        synth.triggerAttackRelease(n, duration, Tone.now() + i * 0.08);
+                    });
+                } else {
+                    synth.triggerAttackRelease(notes, duration);
+                }
+            } catch (e) {
+                // Tarayıcı ses izni kısıtlamalarını sessizce yoksay
+            }
+        }
+
+        // Özel Liste Modal Kontrolleri
+        function openCustomListModal() {
+            const modal = document.getElementById('customListModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeCustomListModal() {
+            const modal = document.getElementById('customListModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Kullanıcının Girdiği Kelime & Açıklama Listesinden Otomatik Çapraz Bulmaca Üretir
+        function generateCustomLevel() {
+            const rawText = document.getElementById('customWordsInput').value.trim();
+            const titleInput = document.getElementById('customLevelTitle').value.trim() || "Özel Bölüm";
+
+            if (!rawText) {
+                showToast("Lütfen en az 1 kelime ve açıklama girin!");
+                return;
+            }
+
+            // Satırları ayrıştır ("KELİME : Açıklama")
+            const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean);
+            const parsedItems = [];
+
+            for (const line of lines) {
+                const sepIdx = line.indexOf(':');
+                let wordPart = sepIdx !== -1 ? line.slice(0, sepIdx) : line;
+                let meaningPart = sepIdx !== -1 ? line.slice(sepIdx + 1) : "Özel eklenen terim.";
+
+                const cleanWord = wordPart.trim().toLocaleUpperCase('tr-TR').replace(/[^A-ZÇĞİÖŞÜ]/g, '');
+                if (cleanWord.length >= 3) {
+                    parsedItems.push({
+                        word: cleanWord,
+                        meaning: meaningPart.trim() || "Özel eklenen terim."
+                    });
+                }
+            }
+
+            const newLevel = buildCrosswordLevelFromItems(titleInput, parsedItems);
+            if (!newLevel) {
+                showToast("Geçerli en az 3 harfli kelime bulunamadı!");
+                return;
+            }
+
+            // Yeni bölümü LEVELS dizisinin başına ekle ve hemen başlat
+            LEVELS.unshift(newLevel);
+            currentLevelIdx = 0;
+            closeCustomListModal();
+            loadLevel(0);
+            updateHomeScreenUI();
+            startGameFromHome();
+            showToast(`"${titleInput}" oluşturuldu! (${newLevel.words.length} kelime)`);
+        }
+
+        // Kelime ve Açıklama Dizisinden Otomatik Çapraz Bulmaca Seviyesi Üreten Ortak Motor
+        function buildCrosswordLevelFromItems(titleInput, rawItems) {
+            const parsedItems = rawItems
+                .map(it => ({
+                    word: (it.word || '').trim().toLocaleUpperCase('tr-TR').replace(/[^A-ZÇĞİÖŞÜ]/g, ''),
+                    meaning: (it.meaning || 'İslami terim.').trim()
+                }))
+                .filter(it => it.word.length >= 3);
+
+            if (parsedItems.length === 0) return null;
+
+            // En uzun kelimeyi ana kelime olarak başa al
+            parsedItems.sort((a, b) => b.word.length - a.word.length);
+            const mainWordObj = parsedItems[0];
+            const baseLetters = mainWordObj.word.split('');
+
+            // Bir kelimenin ana kelimenin harfleriyle (frekansına uygun şekilde) yazılıp yazılamayacağını kontrol et
+            const canFormFromBase = (candidate) => {
+                const pool = [...baseLetters];
+                for (const ch of candidate) {
+                    const idx = pool.indexOf(ch);
+                    if (idx === -1) return false;
+                    pool.splice(idx, 1);
+                }
+                return true;
+            };
+
+            const validItems = parsedItems.filter(item => canFormFromBase(item.word));
+            const placedWords = [];
+            const bonusWords = [];
+            const occupied = {};
+
+            const startR = 3;
+            const startC = 1;
+            for (let i = 0; i < mainWordObj.word.length; i++) {
+                occupied[`${startR}-${startC + i}`] = mainWordObj.word[i];
+            }
+            placedWords.push({
+                word: mainWordObj.word,
+                r: startR,
+                c: startC,
+                dir: 'H',
+                meaning: mainWordObj.meaning
+            });
+
+            for (let idx = 1; idx < validItems.length; idx++) {
+                const item = validItems[idx];
+                let placed = false;
+
+                for (const existing of placedWords) {
+                    if (placed) break;
+                    const targetDir = existing.dir === 'H' ? 'V' : 'H';
+
+                    for (let i = 0; i < existing.word.length; i++) {
+                        if (placed) break;
+                        const crossChar = existing.word[i];
+                        const crossR = existing.dir === 'H' ? existing.r : existing.r + i;
+                        const crossC = existing.dir === 'H' ? existing.c + i : existing.c;
+
+                        for (let j = 0; j < item.word.length; j++) {
+                            if (item.word[j] !== crossChar) continue;
+
+                            const candR = targetDir === 'H' ? crossR : crossR - j;
+                            const candC = targetDir === 'H' ? crossC - j : crossC;
+
+                            let fits = true;
+                            for (let k = 0; k < item.word.length; k++) {
+                                const r = targetDir === 'H' ? candR : candR + k;
+                                const c = targetDir === 'H' ? candC + k : candC;
+                                const key = `${r}-${c}`;
+
+                                if (occupied[key] && occupied[key] !== item.word[k]) {
+                                    fits = false;
+                                    break;
+                                }
+                                if (!occupied[key]) {
+                                    const adj1 = targetDir === 'H' ? `${r - 1}-${c}` : `${r}-${c - 1}`;
+                                    const adj2 = targetDir === 'H' ? `${r + 1}-${c}` : `${r}-${c + 1}`;
+                                    if (occupied[adj1] || occupied[adj2]) {
+                                        fits = false;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            const beforeKey = targetDir === 'H' ? `${candR}-${candC - 1}` : `${candR - 1}-${candC}`;
+                            const afterKey = targetDir === 'H' ? `${candR}-${candC + item.word.length}` : `${candR + item.word.length}-${candC}`;
+                            if (occupied[beforeKey] || occupied[afterKey]) fits = false;
+
+                            if (fits) {
+                                for (let k = 0; k < item.word.length; k++) {
+                                    const r = targetDir === 'H' ? candR : candR + k;
+                                    const c = targetDir === 'H' ? candC + k : candC;
+                                    occupied[`${r}-${c}`] = item.word[k];
+                                }
+                                placedWords.push({
+                                    word: item.word,
+                                    r: candR,
+                                    c: candC,
+                                    dir: targetDir,
+                                    meaning: item.meaning
+                                });
+                                placed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (!placed && item.word !== mainWordObj.word) {
+                    bonusWords.push(item.word);
+                }
+            }
+
+            let minR = Infinity, minC = Infinity, maxR = -Infinity, maxC = -Infinity;
+            placedWords.forEach(w => {
+                const endR = w.dir === 'H' ? w.r : w.r + w.word.length - 1;
+                const endC = w.dir === 'H' ? w.c + w.word.length - 1 : w.c;
+                minR = Math.min(minR, w.r);
+                minC = Math.min(minC, w.c);
+                maxR = Math.max(maxR, endR);
+                maxC = Math.max(maxC, endC);
+            });
+
+            placedWords.forEach(w => {
+                w.r -= minR;
+                w.c -= minC;
+            });
+
+            return {
+                title: titleInput,
+                letters: baseLetters,
+                rows: (maxR - minR) + 1,
+                cols: (maxC - minC) + 1,
+                words: placedWords,
+                bonus: bonusWords
+            };
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
